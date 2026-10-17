@@ -8,7 +8,7 @@
 constexpr int kMaxNumGamepads = 8;
 constexpr int kSubpixelPrecision = 16;
 
-constexpr int kPlayerSpeed = 2000;
+constexpr int kPlayerSpeed = 3200;
 
 typedef struct {
   SDL_GamepadButton a;
@@ -62,7 +62,7 @@ typedef struct {
   SDL_Point loc;
 
   // Units: tile coordinates
-  SDL_Point target_loc;
+  SDL_Point tgt;
 
   PlayerState state;
 
@@ -90,6 +90,8 @@ typedef struct {
   Input prev_input;
   Input input;
   Player player;
+  // Units: chunk coordinates
+  SDL_Point c;
 } Game;
 
 Game* Game_Create(void);

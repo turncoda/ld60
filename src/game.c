@@ -42,6 +42,11 @@ void Game_LoadAssets(Game* g) {
   }
 }
 
+void Game_SyncPlayerOrigin(Game* g) {
+  g->player.origin.x = (g->player.loc.x * kTileWidth) << kSubpixelPrecision;
+  g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
+}
+
 void Game_Init(Game* g) {
   constexpr int kViewportWidth = 160;
   constexpr int kViewportHeight = 144;
@@ -75,12 +80,11 @@ void Game_Init(Game* g) {
 
   g->player.state = IDLE;
   g->player.loc = (SDL_Point){
-      .x = 2,
+      .x = 15,
       .y = 4,
   };
 
-  g->player.origin.x = (g->player.loc.x * kTileWidth) << kSubpixelPrecision;
-  g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
+  Game_SyncPlayerOrigin(g);
 }
 
 SDL_Rect Game_GetWindowSize(Game* g) {
@@ -107,6 +111,9 @@ void Game_RenderTexture(Game* g,
 }
 
 void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
+  if (cx < 0 || cy < 0 || cx >= kWorldWidth || cy >= kWorldHeight) {
+    return;
+  }
   SDL_Texture* tex = g->assets.tex_overworld;
   int ci = cy * kWorldWidth + cx;
   const Tile* base_ptr = kOverworld[ci];
@@ -122,10 +129,10 @@ void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
 }
 
 void Game_RenderOverworld(Game* g) {
-  Game_RenderChunk(g, 0, 0, 0, 0);
-  Game_RenderChunk(g, 1, 0, kChunkWidth * kTileWidth, 0);
-  Game_RenderChunk(g, 0, 1, 0, kChunkHeight * kTileHeight);
-  Game_RenderChunk(g, 1, 1, kChunkWidth * kTileWidth,
+  Game_RenderChunk(g, g->c.x, g->c.y, 0, 0);
+  Game_RenderChunk(g, g->c.x + 1, g->c.y, kChunkWidth * kTileWidth, 0);
+  Game_RenderChunk(g, g->c.x, g->c.y + 1, 0, kChunkHeight * kTileHeight);
+  Game_RenderChunk(g, g->c.x + 1, g->c.y + 1, kChunkWidth * kTileWidth,
                    kChunkHeight * kTileHeight);
 }
 
@@ -158,13 +165,14 @@ void Game_RenderDebug(Game* g) {
                             g->player.origin.y >> kSubpixelPrecision);
   SDL_RenderDebugTextFormat(g->renderer, 0, 8, "loc=(%d, %d)", g->player.loc.x,
                             g->player.loc.y);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 16, "tgt=(%d, %d)",
-                            g->player.target_loc.x, g->player.target_loc.y);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 24, "state=%s",
+  SDL_RenderDebugTextFormat(g->renderer, 0, 16, "tgt=(%d, %d)", g->player.tgt.x,
+                            g->player.tgt.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 24, "c=(%d, %d)", g->c.x, g->c.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 30, "state=%s",
                             Player_DebugState(g->player.state));
   if (g->player.state == MOVE) {
-    SDL_FRect r = {.x = g->player.target_loc.x * kTileWidth * g->render_scale,
-                   .y = g->player.target_loc.y * kTileHeight * g->render_scale,
+    SDL_FRect r = {.x = g->player.tgt.x * kTileWidth * g->render_scale,
+                   .y = g->player.tgt.y * kTileHeight * g->render_scale,
                    .w = kTileWidth * g->render_scale,
                    .h = kTileHeight * g->render_scale};
     SDL_SetRenderDrawColor(g->renderer, 255, 0, 0, 255);
@@ -217,31 +225,57 @@ void Game_PollInput(Game* g) {
 void Game_Update(Game* g, Uint64 dt) {
   if (g->player.state == IDLE) {
     if (g->input.up) {
-      g->player.target_loc = g->player.loc;
-      g->player.target_loc.y--;
+      g->player.tgt = g->player.loc;
+      g->player.tgt.y--;
       g->player.state = MOVE;
     }
     if (g->input.down) {
-      g->player.target_loc = g->player.loc;
-      g->player.target_loc.y++;
+      g->player.tgt = g->player.loc;
+      g->player.tgt.y++;
       g->player.state = MOVE;
     }
     if (g->input.left) {
-      g->player.target_loc = g->player.loc;
-      g->player.target_loc.x--;
+      g->player.tgt = g->player.loc;
+      g->player.tgt.x--;
       g->player.state = MOVE;
     }
     if (g->input.right) {
-      g->player.target_loc = g->player.loc;
-      g->player.target_loc.x++;
+      g->player.tgt = g->player.loc;
+      g->player.tgt.x++;
       g->player.state = MOVE;
     }
   }
+
+  if (g->player.state == MOVE) {
+    if (g->player.tgt.x > kChunkWidth) {
+      g->c.x++;
+      g->player.tgt.x -= kChunkWidth;
+      g->player.loc.x -= kChunkWidth;
+      Game_SyncPlayerOrigin(g);
+    } else if (g->player.tgt.x < 1) {
+      g->c.x--;
+      g->player.tgt.x += kChunkWidth;
+      g->player.loc.x += kChunkWidth;
+      Game_SyncPlayerOrigin(g);
+    }
+    if (g->player.tgt.y > kChunkHeight) {
+      g->c.y++;
+      g->player.tgt.y -= kChunkHeight;
+      g->player.loc.y -= kChunkHeight;
+      Game_SyncPlayerOrigin(g);
+    } else if (g->player.tgt.y < 1) {
+      g->c.y--;
+      g->player.tgt.y += kChunkHeight;
+      g->player.loc.y += kChunkHeight;
+      Game_SyncPlayerOrigin(g);
+    }
+  }
+
   if (g->player.state == MOVE) {
     int target_subpixel_x =
-        ((g->player.target_loc.x * kTileWidth) << kSubpixelPrecision);
+        ((g->player.tgt.x * kTileWidth) << kSubpixelPrecision);
     int target_subpixel_y =
-        ((g->player.target_loc.y * kTileHeight) << kSubpixelPrecision);
+        ((g->player.tgt.y * kTileHeight) << kSubpixelPrecision);
     int dx = target_subpixel_x - g->player.origin.x;
     int dy = target_subpixel_y - g->player.origin.y;
     if (dx != 0) {
@@ -262,7 +296,7 @@ void Game_Update(Game* g, Uint64 dt) {
     }
     if (target_subpixel_x == g->player.origin.x &&
         target_subpixel_y == g->player.origin.y) {
-      g->player.loc = g->player.target_loc;
+      g->player.loc = g->player.tgt;
       g->player.state = IDLE;
     }
   }
