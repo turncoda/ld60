@@ -4,14 +4,18 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_iostream.h>
 #include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_log.h>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
 
 // generated
+#include <meta_overworld.h>
 #include <meta_smallship_bob.h>
+#include <spr_overworld.h>
 #include <spr_smallship_bob.h>
+#include <tilemap_overworld.h>
 
 Game* Game_Create(void) {
   Game* g = SDL_calloc(1, sizeof(Game));
@@ -20,6 +24,14 @@ Game* Game_Create(void) {
 }
 
 void Game_LoadAssets(Game* g) {
+  {
+    SDL_Surface* surface = SDL_LoadPNG_IO(
+        SDL_IOFromConstMem(spr_overworld, spr_overworld_len), true);
+    g->assets.tex_overworld =
+        SDL_CreateTextureFromSurface(g->renderer, surface);
+    SDL_SetTextureScaleMode(g->assets.tex_overworld, SDL_SCALEMODE_NEAREST);
+    SDL_DestroySurface(surface);
+  }
   {
     SDL_Surface* surface = SDL_LoadPNG_IO(
         SDL_IOFromConstMem(spr_smallship_bob, spr_smallship_bob_len), true);
@@ -88,6 +100,29 @@ void Game_RenderTexture(Game* g,
                            mirror_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 }
 
+void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
+  SDL_Texture* tex = g->assets.tex_overworld;
+  int ci = cy * kWorldWidth + cx;
+  const Tile* base_ptr = kOverworld[ci];
+  for (int y = 0; y < kChunkHeight; y++) {
+    for (int x = 0; x < kChunkWidth; x++) {
+      int i = y * kChunkWidth + x;
+      const Tile* t = base_ptr + i;
+      const SDL_Rect* src_rect = &kFrames_overworld[*t].rect;
+      Game_RenderTexture(g, tex, src_rect, px + x * kTileWidth,
+                         py + y * kTileHeight, false);
+    }
+  }
+}
+
+void Game_RenderOverworld(Game* g) {
+  Game_RenderChunk(g, 0, 0, 0, 0);
+  Game_RenderChunk(g, 1, 0, kChunkWidth * kTileWidth, 0);
+  Game_RenderChunk(g, 0, 1, 0, kChunkHeight * kTileHeight);
+  Game_RenderChunk(g, 1, 1, kChunkWidth * kTileWidth,
+                   kChunkHeight * kTileHeight);
+}
+
 void Game_RenderPlayer(Game* g) {
   SDL_Texture* tex = NULL;
   const SDL_Rect* src_rect = NULL;
@@ -106,6 +141,7 @@ void Game_Render(Game* g) {
   SDL_SetRenderScale(g->renderer, g->render_scale, g->render_scale);
   SDL_SetRenderDrawColor(g->renderer, 99, 155, 255, 255);
   SDL_RenderClear(g->renderer);
+  Game_RenderOverworld(g);
   Game_RenderPlayer(g);
   SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
   SDL_SetRenderScale(g->renderer, 2, 2);

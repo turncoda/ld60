@@ -34,6 +34,7 @@ typedef struct {
 
 typedef struct {
   SDL_Texture* tex_smallship_bob;
+  SDL_Texture* tex_overworld;
 } Assets;
 
 typedef struct {
