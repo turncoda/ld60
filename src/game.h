@@ -59,7 +59,10 @@ typedef struct {
   SDL_Point vel;
 
   // Units: tile coordinates
-  SDL_Point move_target;
+  SDL_Point loc;
+
+  // Units: tile coordinates
+  SDL_Point target_loc;
 
   PlayerState state;
 

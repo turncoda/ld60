@@ -73,10 +73,14 @@ void Game_Init(Game* g) {
       .right = SDL_SCANCODE_RIGHT,
   };
 
-  g->player.origin.x = g->viewport.w >> 1 << kSubpixelPrecision;
-  g->player.origin.y = g->viewport.h >> 1 << kSubpixelPrecision;
-
   g->player.state = IDLE;
+  g->player.loc = (SDL_Point){
+      .x = 2,
+      .y = 4,
+  };
+
+  g->player.origin.x = (g->player.loc.x * kTileWidth) << kSubpixelPrecision;
+  g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
 }
 
 SDL_Rect Game_GetWindowSize(Game* g) {
@@ -128,14 +132,11 @@ void Game_RenderOverworld(Game* g) {
 void Game_RenderPlayer(Game* g) {
   SDL_Texture* tex = NULL;
   const SDL_Rect* src_rect = NULL;
-  const SDL_Point* spr_offset = NULL;
   tex = g->assets.tex_smallship_bob;
   src_rect = &kFrames_smallship_bob[0].rect;
-  spr_offset = &kPivot_smallship_bob;
   // Units: pixels
   int x = g->player.origin.x >> kSubpixelPrecision;
   int y = g->player.origin.y >> kSubpixelPrecision;
-  y -= spr_offset->y;
   Game_RenderTexture(g, tex, src_rect, x, y, false);
 }
 
@@ -150,10 +151,25 @@ const char* Player_DebugState(PlayerState state) {
 }
 
 void Game_RenderDebug(Game* g) {
-  SDL_RenderDebugTextFormat(g->renderer, 0, 0, "vx=%d", g->player.vel.x);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 8, "vy=%d", g->player.vel.y);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 16, "state=%s",
+  SDL_SetRenderScale(g->renderer, 1, 1);
+  SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 0, "origin=(%d, %d)",
+                            g->player.origin.x >> kSubpixelPrecision,
+                            g->player.origin.y >> kSubpixelPrecision);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 8, "loc=(%d, %d)", g->player.loc.x,
+                            g->player.loc.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 16, "tgt=(%d, %d)",
+                            g->player.target_loc.x, g->player.target_loc.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 24, "state=%s",
                             Player_DebugState(g->player.state));
+  if (g->player.state == MOVE) {
+    SDL_FRect r = {.x = g->player.target_loc.x * kTileWidth * g->render_scale,
+                   .y = g->player.target_loc.y * kTileHeight * g->render_scale,
+                   .w = kTileWidth * g->render_scale,
+                   .h = kTileHeight * g->render_scale};
+    SDL_SetRenderDrawColor(g->renderer, 255, 0, 0, 255);
+    SDL_RenderRect(g->renderer, &r);
+  }
 }
 
 void Game_Render(Game* g) {
@@ -162,8 +178,6 @@ void Game_Render(Game* g) {
   SDL_RenderClear(g->renderer);
   Game_RenderOverworld(g);
   Game_RenderPlayer(g);
-  SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
-  SDL_SetRenderScale(g->renderer, 2, 2);
   Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
 }
@@ -201,29 +215,57 @@ void Game_PollInput(Game* g) {
 }
 
 void Game_Update(Game* g, Uint64 dt) {
-  (void)g;
-  (void)dt;
-  g->player.vel.x = 0;
-  g->player.vel.y = 0;
-  if (g->input.up) {
-    g->player.vel.y -= kPlayerSpeed;
+  if (g->player.state == IDLE) {
+    if (g->input.up) {
+      g->player.target_loc = g->player.loc;
+      g->player.target_loc.y--;
+      g->player.state = MOVE;
+    }
+    if (g->input.down) {
+      g->player.target_loc = g->player.loc;
+      g->player.target_loc.y++;
+      g->player.state = MOVE;
+    }
+    if (g->input.left) {
+      g->player.target_loc = g->player.loc;
+      g->player.target_loc.x--;
+      g->player.state = MOVE;
+    }
+    if (g->input.right) {
+      g->player.target_loc = g->player.loc;
+      g->player.target_loc.x++;
+      g->player.state = MOVE;
+    }
   }
-  if (g->input.down) {
-    g->player.vel.y += kPlayerSpeed;
+  if (g->player.state == MOVE) {
+    int target_subpixel_x =
+        ((g->player.target_loc.x * kTileWidth) << kSubpixelPrecision);
+    int target_subpixel_y =
+        ((g->player.target_loc.y * kTileHeight) << kSubpixelPrecision);
+    int dx = target_subpixel_x - g->player.origin.x;
+    int dy = target_subpixel_y - g->player.origin.y;
+    if (dx != 0) {
+      int sign = dx < 0 ? -1 : 1;
+      int d = dt * kPlayerSpeed;
+      int max_d = dx * sign;
+      int clamped_d = SDL_min(max_d, d);
+      int final_d = clamped_d * sign;
+      g->player.origin.x += final_d;
+    }
+    if (dy != 0) {
+      int sign = dy < 0 ? -1 : 1;
+      int d = dt * kPlayerSpeed;
+      int max_d = dy * sign;
+      int clamped_d = SDL_min(max_d, d);
+      int final_d = clamped_d * sign;
+      g->player.origin.y += final_d;
+    }
+    if (target_subpixel_x == g->player.origin.x &&
+        target_subpixel_y == g->player.origin.y) {
+      g->player.loc = g->player.target_loc;
+      g->player.state = IDLE;
+    }
   }
-  if (g->input.left) {
-    g->player.vel.x -= kPlayerSpeed;
-  }
-  if (g->input.right) {
-    g->player.vel.x += kPlayerSpeed;
-  }
-  if (g->player.vel.x != 0 || g->player.vel.y != 0) {
-    g->player.state = MOVE;
-  } else {
-    g->player.state = IDLE;
-  }
-  g->player.origin.x += dt * g->player.vel.x;
-  g->player.origin.y += dt * g->player.vel.y;
   SDL_memcpy(&g->prev_input, &g->input, sizeof(g->input));
 }
 
