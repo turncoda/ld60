@@ -37,6 +37,17 @@ typedef struct {
   SDL_Texture* tex_overworld;
 } Assets;
 
+#define PLAYER_STATES(X) \
+  X(INVALID)             \
+  X(IDLE)                \
+  X(MOVE)
+
+typedef enum {
+#define X(NAME) NAME,
+  PLAYER_STATES(X)
+#undef X
+} PlayerState;
+
 typedef struct {
   // Units: subpixels
   SDL_Point origin;
@@ -46,6 +57,12 @@ typedef struct {
 
   // Units: subpixels per millisecond
   SDL_Point vel;
+
+  // Units: tile coordinates
+  SDL_Point move_target;
+
+  PlayerState state;
+
 } Player;
 
 typedef struct {

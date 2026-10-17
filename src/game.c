@@ -75,6 +75,8 @@ void Game_Init(Game* g) {
 
   g->player.origin.x = g->viewport.w >> 1 << kSubpixelPrecision;
   g->player.origin.y = g->viewport.h >> 1 << kSubpixelPrecision;
+
+  g->player.state = IDLE;
 }
 
 SDL_Rect Game_GetWindowSize(Game* g) {
@@ -137,6 +139,23 @@ void Game_RenderPlayer(Game* g) {
   Game_RenderTexture(g, tex, src_rect, x, y, false);
 }
 
+const char* Player_DebugState(PlayerState state) {
+  switch (state) {
+#define X(NAME) \
+  case NAME:    \
+    return #NAME;
+    PLAYER_STATES(X)
+#undef X
+  }
+}
+
+void Game_RenderDebug(Game* g) {
+  SDL_RenderDebugTextFormat(g->renderer, 0, 0, "vx=%d", g->player.vel.x);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 8, "vy=%d", g->player.vel.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 16, "state=%s",
+                            Player_DebugState(g->player.state));
+}
+
 void Game_Render(Game* g) {
   SDL_SetRenderScale(g->renderer, g->render_scale, g->render_scale);
   SDL_SetRenderDrawColor(g->renderer, 99, 155, 255, 255);
@@ -145,8 +164,7 @@ void Game_Render(Game* g) {
   Game_RenderPlayer(g);
   SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
   SDL_SetRenderScale(g->renderer, 2, 2);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 0, "vx=%d", g->player.vel.x);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 8, "vy=%d", g->player.vel.y);
+  Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
 }
 
@@ -198,6 +216,11 @@ void Game_Update(Game* g, Uint64 dt) {
   }
   if (g->input.right) {
     g->player.vel.x += kPlayerSpeed;
+  }
+  if (g->player.vel.x != 0 || g->player.vel.y != 0) {
+    g->player.state = MOVE;
+  } else {
+    g->player.state = IDLE;
   }
   g->player.origin.x += dt * g->player.vel.x;
   g->player.origin.y += dt * g->player.vel.y;
