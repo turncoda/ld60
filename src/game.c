@@ -10,14 +10,15 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
 
+#include <data.h>
+
 // generated
-#include <meta_overworld.h>
 #include <meta_smallship_bob.h>
-#include <spr_overworld.h>
+#include <meta_tiles.h>
 #include <spr_overworld2.h>
 #include <spr_sky.h>
 #include <spr_smallship_bob.h>
-#include <tilemap_overworld.h>
+#include <spr_tiles.h>
 
 Uint8 u8_hash(int n) {
   n *= 198347193467913;
@@ -47,6 +48,7 @@ void Game_LoadAssets(Game* g) {
     Uint32* pixels = surface->pixels;
     g->overworld = SDL_calloc(surface->w * surface->h, sizeof(Tile2));
     g->world_width = surface->w / kChunkWidth;
+    g->world_height = surface->h / kChunkHeight;
     for (int y = 0; y < surface->h; y++) {
       for (int x = 0; x < surface->w; x++) {
         int i = y * surface->w + x;
@@ -65,6 +67,7 @@ void Game_LoadAssets(Game* g) {
 
         switch (d) {
           case kPlayer:
+            g->overworld[j] = WATER;
             g->cc.x = cx;
             g->cc.y = cy;
             g->player.loc.x = rx;
@@ -78,6 +81,7 @@ void Game_LoadAssets(Game* g) {
             g->overworld[j] = GRASS;
             break;
           case kWater:
+            g->overworld[j] = WATER;
             break;
           default:
             SDL_Log("%x", d);
@@ -126,11 +130,10 @@ void Game_LoadAssets(Game* g) {
     SDL_DestroySurface(surface);
   }
   {
-    SDL_Surface* surface = SDL_LoadPNG_IO(
-        SDL_IOFromConstMem(spr_overworld, spr_overworld_len), true);
-    g->assets.tex_overworld =
-        SDL_CreateTextureFromSurface(g->renderer, surface);
-    SDL_SetTextureScaleMode(g->assets.tex_overworld, SDL_SCALEMODE_NEAREST);
+    SDL_Surface* surface =
+        SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_tiles, spr_tiles_len), true);
+    g->assets.tex_tiles = SDL_CreateTextureFromSurface(g->renderer, surface);
+    SDL_SetTextureScaleMode(g->assets.tex_tiles, SDL_SCALEMODE_NEAREST);
     SDL_DestroySurface(surface);
   }
   {
@@ -199,17 +202,17 @@ void Game_RenderTexture(Game* g,
 }
 
 void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
-  if (cx < 0 || cy < 0 || cx >= kWorldWidth || cy >= kWorldHeight) {
-    // return;
+  if (cx < 0 || cy < 0 || cx >= g->world_width || cy >= g->world_height) {
+    return;
   }
-  SDL_Texture* tex = g->assets.tex_overworld;
+  SDL_Texture* tex = g->assets.tex_tiles;
   int ci = cy * g->world_width + cx;
   Tile2* base_ptr = &g->overworld[ci * kChunkWidth * kChunkHeight];
   for (int y = 0; y < kChunkHeight; y++) {
     for (int x = 0; x < kChunkWidth; x++) {
       int i = y * kChunkWidth + x;
       Tile2* t = base_ptr + i;
-      const SDL_Rect* src_rect = &kFrames_overworld[*t].rect;
+      const SDL_Rect* src_rect = &kFrames_tiles[*t].rect;
       Game_RenderTexture(g, tex, src_rect, px + x * kTileWidth,
                          py + y * kTileHeight, false);
     }

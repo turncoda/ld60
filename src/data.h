@@ -11,6 +11,3 @@ constexpr int kTileWidth = 8;
 
 // Units: pixels
 constexpr int kTileHeight = 8;
-
-typedef int Tile;
-typedef Tile Chunk[kChunkWidth*kChunkHeight];

@@ -42,7 +42,7 @@ typedef struct {
 
 typedef struct {
   SDL_Texture* tex_smallship_bob;
-  SDL_Texture* tex_overworld;
+  SDL_Texture* tex_tiles;
 } Assets;
 
 #define ENTITY_TYPES(X) \
@@ -128,8 +128,10 @@ typedef struct {
   bool is_map_visible;
 
   Tile2* overworld;
-  // Units: chunks;
+  // Units: chunks
   int world_width;
+  // Units: chunks
+  int world_height;
 } Game;
 
 Game* Game_Create(void);

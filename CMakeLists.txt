@@ -55,18 +55,3 @@ foreach(path ${meta_paths})
   add_custom_target(generate_${var_name} DEPENDS ${output})
   add_dependencies(${TARGET_NAME} generate_${var_name})
 endforeach()
-
-# Parse tilemap
-block()
-  set(path ${CMAKE_SOURCE_DIR}/assets/overworld/sprite.json)
-  set(var_name overworld)
-  set(output gen/tilemap_${var_name}.h)
-  add_custom_command(
-    OUTPUT ${output}
-    COMMAND python ${CMAKE_SOURCE_DIR}/scripts/parse_tilemap.py ${path} ${output}
-    DEPENDS scripts/parse_tilemap.py ${path}
-    VERBATIM
-  )
-  add_custom_target(generate_${var_name} DEPENDS ${output})
-  add_dependencies(${TARGET_NAME} generate_${var_name})
-endblock()
