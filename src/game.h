@@ -91,7 +91,8 @@ typedef struct {
   Input input;
   Player player;
   // Units: chunk coordinates
-  SDL_Point c;
+  SDL_Point cc;
+  SDL_Point *stars;
 } Game;
 
 Game* Game_Create(void);

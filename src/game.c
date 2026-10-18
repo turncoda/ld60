@@ -14,6 +14,7 @@
 #include <meta_overworld.h>
 #include <meta_smallship_bob.h>
 #include <spr_overworld.h>
+#include <spr_sky.h>
 #include <spr_smallship_bob.h>
 #include <tilemap_overworld.h>
 
@@ -24,6 +25,38 @@ Game* Game_Create(void) {
 }
 
 void Game_LoadAssets(Game* g) {
+  {
+    SDL_Surface* surface =
+        SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_sky, spr_sky_len), true);
+    // assumes pixel format is RGBA8
+    Uint32* pixels = surface->pixels;
+    int num_points = 0;
+    for (int y = 0; y < surface->h; y++) {
+      for (int x = 0; x < surface->w; x++) {
+        int i = y * surface->w + x;
+        Uint32 d = pixels[i];
+        constexpr Uint32 kWhite = ~0u;
+        if (d == kWhite) {
+          num_points++;
+        }
+      }
+    }
+    g->stars = SDL_calloc(num_points, sizeof(SDL_Point));
+    int j = 0;
+    for (int y = 0; y < surface->h; y++) {
+      for (int x = 0; x < surface->w; x++) {
+        int i = y * surface->w + x;
+        Uint32 d = pixels[i];
+        constexpr Uint32 kWhite = ~0u;
+        if (d == kWhite) {
+          *(g->stars + j) = (SDL_Point){.x = x, .y = y};
+          j++;
+        }
+      }
+    }
+    SDL_Log("loaded %d stars", num_points);
+    SDL_DestroySurface(surface);
+  }
   {
     SDL_Surface* surface = SDL_LoadPNG_IO(
         SDL_IOFromConstMem(spr_overworld, spr_overworld_len), true);
@@ -129,10 +162,10 @@ void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
 }
 
 void Game_RenderOverworld(Game* g) {
-  Game_RenderChunk(g, g->c.x, g->c.y, 0, 0);
-  Game_RenderChunk(g, g->c.x + 1, g->c.y, kChunkWidth * kTileWidth, 0);
-  Game_RenderChunk(g, g->c.x, g->c.y + 1, 0, kChunkHeight * kTileHeight);
-  Game_RenderChunk(g, g->c.x + 1, g->c.y + 1, kChunkWidth * kTileWidth,
+  Game_RenderChunk(g, g->cc.x, g->cc.y, 0, 0);
+  Game_RenderChunk(g, g->cc.x + 1, g->cc.y, kChunkWidth * kTileWidth, 0);
+  Game_RenderChunk(g, g->cc.x, g->cc.y + 1, 0, kChunkHeight * kTileHeight);
+  Game_RenderChunk(g, g->cc.x + 1, g->cc.y + 1, kChunkWidth * kTileWidth,
                    kChunkHeight * kTileHeight);
 }
 
@@ -167,7 +200,7 @@ void Game_RenderDebug(Game* g) {
                             g->player.loc.y);
   SDL_RenderDebugTextFormat(g->renderer, 0, 16, "tgt=(%d, %d)", g->player.tgt.x,
                             g->player.tgt.y);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 24, "c=(%d, %d)", g->c.x, g->c.y);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 24, "c=(%d, %d)", g->cc.x, g->cc.y);
   SDL_RenderDebugTextFormat(g->renderer, 0, 30, "state=%s",
                             Player_DebugState(g->player.state));
   if (g->player.state == MOVE) {
@@ -248,23 +281,23 @@ void Game_Update(Game* g, Uint64 dt) {
 
   if (g->player.state == MOVE) {
     if (g->player.tgt.x > kChunkWidth) {
-      g->c.x++;
+      g->cc.x++;
       g->player.tgt.x -= kChunkWidth;
       g->player.loc.x -= kChunkWidth;
       Game_SyncPlayerOrigin(g);
     } else if (g->player.tgt.x < 1) {
-      g->c.x--;
+      g->cc.x--;
       g->player.tgt.x += kChunkWidth;
       g->player.loc.x += kChunkWidth;
       Game_SyncPlayerOrigin(g);
     }
     if (g->player.tgt.y > kChunkHeight) {
-      g->c.y++;
+      g->cc.y++;
       g->player.tgt.y -= kChunkHeight;
       g->player.loc.y -= kChunkHeight;
       Game_SyncPlayerOrigin(g);
     } else if (g->player.tgt.y < 1) {
-      g->c.y--;
+      g->cc.y--;
       g->player.tgt.y += kChunkHeight;
       g->player.loc.y += kChunkHeight;
       Game_SyncPlayerOrigin(g);
