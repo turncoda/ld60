@@ -18,6 +18,8 @@ constexpr int kDayTickPrecision = 10;
 
 constexpr float kPi = 3.141592f;
 
+constexpr int kMaxNumEntities = 256;
+
 typedef struct {
   SDL_GamepadButton a;
   SDL_GamepadButton b;
@@ -46,14 +48,29 @@ typedef struct {
 } Assets;
 
 #define ENTITY_TYPES(X) \
-  X(BLANK)              \
-  X(WATER)              \
-  X(GRASS)              \
-  X(SAND)
+  X(NOTYPE)             \
+  X(CYCLONE)
 
 typedef enum {
 #define X(NAME) NAME,
   ENTITY_TYPES(X)
+#undef X
+} EntityType;
+
+typedef struct {
+  EntityType type;
+  SDL_Point loc;
+} Entity;
+
+#define TILES(X) \
+  X(BLANK)       \
+  X(WATER)       \
+  X(GRASS)       \
+  X(SAND)
+
+typedef enum {
+#define X(NAME) NAME,
+  TILES(X)
 #undef X
 } Tile2;
 
@@ -127,15 +144,20 @@ typedef struct {
   Uint8 time_mult;
   bool is_map_visible;
 
+  EntityType* entity_spawns;
   Tile2* overworld;
   // Units: chunks
   int world_width;
   // Units: chunks
   int world_height;
+
+  Entity* entities;
+  int num_ent;
 } Game;
 
 Game* Game_Create(void);
 void Game_LoadAssets(Game* g);
+void Game_InitBuffers(Game* g);
 void Game_Init(Game* g);
 SDL_Rect Game_GetWindowSize(Game* g);
 void Game_PollInput(Game* g);

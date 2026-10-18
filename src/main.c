@@ -38,6 +38,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
   SDL_SetRenderVSync(g->renderer, 1);
   SDL_SetRenderDrawBlendMode(g->renderer, SDL_BLENDMODE_BLEND);
 
+  Game_InitBuffers(g);
   Game_LoadAssets(g);
 
   return SDL_APP_CONTINUE;

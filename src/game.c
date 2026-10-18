@@ -34,10 +34,37 @@ void Game_SyncPlayerOrigin(Game* g) {
   g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
 }
 
+void Game_ResetEntities(Game* g) {
+  g->num_ent = 0;
+  int ci = g->cc.y * g->world_width + g->cc.x;
+  EntityType* bp = &g->entity_spawns[ci * kChunkHeight * kChunkWidth];
+  for (int y = 0; y < kChunkHeight; y++) {
+    for (int x = 0; x < kChunkWidth; x++) {
+      int i = y * kChunkWidth + x;
+      EntityType type = *(bp + i);
+      if (type == NOTYPE) {
+        continue;
+      }
+      g->entities[g->num_ent++] = (Entity){
+          .loc =
+              {
+                  .x = x,
+                  .y = y,
+              },
+          .type = type,
+      };
+    }
+  }
+}
+
 Game* Game_Create(void) {
   Game* g = SDL_calloc(1, sizeof(Game));
   Game_Init(g);
   return g;
+}
+
+void Game_InitBuffers(Game* g) {
+  g->entities = SDL_calloc(kMaxNumEntities, sizeof(Entity));
 }
 
 void Game_LoadAssets(Game* g) {
@@ -47,8 +74,10 @@ void Game_LoadAssets(Game* g) {
     // assumes pixel format is RGBA8
     Uint32* pixels = surface->pixels;
     g->overworld = SDL_calloc(surface->w * surface->h, sizeof(Tile2));
+    g->entity_spawns = SDL_calloc(surface->w * surface->h, sizeof(EntityType));
     g->world_width = surface->w / kChunkWidth;
     g->world_height = surface->h / kChunkHeight;
+    int num_unknown = 0;
     for (int y = 0; y < surface->h; y++) {
       for (int x = 0; x < surface->w; x++) {
         int i = y * surface->w + x;
@@ -60,34 +89,41 @@ void Game_LoadAssets(Game* g) {
         int j = ci * kChunkWidth * kChunkHeight + ry * kChunkWidth + rx;
         Uint32 d = pixels[i];
 
-        constexpr Uint32 kPlayer = 0xff0000ff;
-        constexpr Uint32 kSand = 0xff9ac3ee;
-        constexpr Uint32 kWater = 0xffff9b63;
-        constexpr Uint32 kGrass = 0xff30be6a;
-
+        // color format: 0xAABBGGRR
         switch (d) {
-          case kPlayer:
+          case 0xff0000ff: /* player */
             g->overworld[j] = WATER;
             g->cc.x = cx;
             g->cc.y = cy;
             g->player.loc.x = rx;
             g->player.loc.y = ry;
             Game_SyncPlayerOrigin(g);
+            Game_ResetEntities(g);
             break;
-          case kSand:
+          case 0xff9ac3ee: /* sand */
             g->overworld[j] = SAND;
             break;
-          case kGrass:
+          case 0xff30be6a: /* grass */
             g->overworld[j] = GRASS;
             break;
-          case kWater:
+          case 0xffff9b63: /* water */
             g->overworld[j] = WATER;
             break;
+          case 0xffffffff: /* cyclone */
+            g->overworld[j] = WATER;
+            g->entity_spawns[j] = CYCLONE;
+            break;
           default:
-            SDL_Log("%x", d);
+            num_unknown++;
+            SDL_Log("warning: unknown color 0x%x", d);
             break;
         }
       }
+    }
+    if (num_unknown > 0) {
+      SDL_Log(
+          "warning: encountered %d unknown tiles while parsing overworld map",
+          num_unknown);
     }
     SDL_DestroySurface(surface);
   }
@@ -281,8 +317,9 @@ void Game_RenderDebug(Game* g) {
   SDL_RenderDebugTextFormat(g->renderer, 0, 16, "tgt=(%d, %d)", g->player.tgt.x,
                             g->player.tgt.y);
   SDL_RenderDebugTextFormat(g->renderer, 0, 24, "c=(%d, %d)", g->cc.x, g->cc.y);
-  SDL_RenderDebugTextFormat(g->renderer, 0, 30, "state=%s",
+  SDL_RenderDebugTextFormat(g->renderer, 0, 32, "state=%s",
                             Player_DebugState(g->player.state));
+  SDL_RenderDebugTextFormat(g->renderer, 0, 40, "num_ent=%d", g->num_ent);
   if (g->player.state == MOVE) {
     SDL_FRect r = {.x = g->player.tgt.x * kTileWidth * g->render_scale,
                    .y = g->player.tgt.y * kTileHeight * g->render_scale,
@@ -342,7 +379,9 @@ void Game_Update(Game* g, Uint64 dt) {
   if (!g->prev_input.select && g->input.select) {
     g->is_map_visible = !g->is_map_visible;
   }
+
   g->day_ticks += g->time_mult * dt;
+
   for (int i = 0; i < g->num_stars; i++) {
     float x = g->stars[i].loc.x;
     float y = g->stars[i].loc.y;
@@ -354,6 +393,7 @@ void Game_Update(Game* g, Uint64 dt) {
     g->stars[i].xfm.x = rx + (float)kViewportWidth / 2;
     g->stars[i].xfm.y = ry + (float)kViewportHeight / 2;
   }
+
   if (g->player.state == IDLE) {
     if (g->input.up) {
       g->player.tgt = g->player.loc;
@@ -378,6 +418,7 @@ void Game_Update(Game* g, Uint64 dt) {
   }
 
   if (g->player.state == MOVE) {
+    SDL_Point prev_cc = g->cc;
     if (g->player.tgt.x > kChunkWidth) {
       g->cc.x++;
       g->player.tgt.x -= kChunkWidth;
@@ -399,6 +440,10 @@ void Game_Update(Game* g, Uint64 dt) {
       g->player.tgt.y += kChunkHeight;
       g->player.loc.y += kChunkHeight;
       Game_SyncPlayerOrigin(g);
+    }
+
+    if (!(g->cc.x == prev_cc.x && g->cc.y == prev_cc.y)) {
+      Game_ResetEntities(g);
     }
   }
 
