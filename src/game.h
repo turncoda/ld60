@@ -45,6 +45,7 @@ typedef struct {
 typedef struct {
   SDL_Texture* tex_smallship_bob;
   SDL_Texture* tex_tiles;
+  SDL_Texture* tex_cyclone;
 } Assets;
 
 #define ENTITY_TYPES(X) \
@@ -60,6 +61,8 @@ typedef enum {
 typedef struct {
   EntityType type;
   SDL_Point loc;
+  SDL_Texture* tex;
+  SDL_Rect src_rect;
 } Entity;
 
 #define TILES(X) \
@@ -158,6 +161,7 @@ typedef struct {
 Game* Game_Create(void);
 void Game_LoadAssets(Game* g);
 void Game_InitBuffers(Game* g);
+void Game_OneTimeSetup(Game* g);
 void Game_Init(Game* g);
 SDL_Rect Game_GetWindowSize(Game* g);
 void Game_PollInput(Game* g);

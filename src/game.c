@@ -1,5 +1,7 @@
 #include <game.h>
 
+#include <intrin.h>
+
 #include <SDL3/SDL_assert.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_iostream.h>
@@ -13,11 +15,17 @@
 #include <data.h>
 
 // generated
+#include <meta_cyclone.h>
+#include <spr_cyclone.h>
+
 #include <meta_smallship_bob.h>
-#include <meta_tiles.h>
-#include <spr_overworld2.h>
-#include <spr_sky.h>
 #include <spr_smallship_bob.h>
+
+#include <spr_overworld2.h>
+
+#include <spr_sky.h>
+
+#include <meta_tiles.h>
 #include <spr_tiles.h>
 
 Uint8 u8_hash(int n) {
@@ -27,6 +35,40 @@ Uint8 u8_hash(int n) {
   n = n << 5;
   n *= 987972459874791;
   return n % 255;
+}
+
+const char* EntityType_ToString(EntityType type) {
+  switch (type) {
+#define X(NAME) \
+  case NAME:    \
+    return #NAME;
+    ENTITY_TYPES(X)
+#undef X
+  }
+}
+
+Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
+  SDL_Log("Spawning %s at %d,%d", EntityType_ToString(type), x, y);
+  SDL_Texture* tex = NULL;
+  SDL_Rect src_rect = {0};
+  switch (type) {
+    case CYCLONE:
+      tex = g->assets.tex_cyclone;
+      src_rect = kFrames_cyclone[0].rect;
+      break;
+    default:
+      break;
+  }
+  return (Entity){
+      .loc =
+          {
+              .x = x,
+              .y = y,
+          },
+      .type = type,
+      .tex = tex,
+      .src_rect = src_rect,
+  };
 }
 
 void Game_SyncPlayerOrigin(Game* g) {
@@ -45,21 +87,15 @@ void Game_ResetEntities(Game* g) {
       if (type == NOTYPE) {
         continue;
       }
-      g->entities[g->num_ent++] = (Entity){
-          .loc =
-              {
-                  .x = x,
-                  .y = y,
-              },
-          .type = type,
-      };
+      Entity ent = Game_NewEntity(g, x, y, type);
+      g->entities[g->num_ent++] = ent;
     }
   }
 }
 
 Game* Game_Create(void) {
   Game* g = SDL_calloc(1, sizeof(Game));
-  Game_Init(g);
+  Game_OneTimeSetup(g);
   return g;
 }
 
@@ -97,8 +133,6 @@ void Game_LoadAssets(Game* g) {
             g->cc.y = cy;
             g->player.loc.x = rx;
             g->player.loc.y = ry;
-            Game_SyncPlayerOrigin(g);
-            Game_ResetEntities(g);
             break;
           case 0xff9ac3ee: /* sand */
             g->overworld[j] = SAND;
@@ -167,6 +201,13 @@ void Game_LoadAssets(Game* g) {
   }
   {
     SDL_Surface* surface =
+        SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_cyclone, spr_cyclone_len), true);
+    g->assets.tex_cyclone = SDL_CreateTextureFromSurface(g->renderer, surface);
+    SDL_SetTextureScaleMode(g->assets.tex_cyclone, SDL_SCALEMODE_NEAREST);
+    SDL_DestroySurface(surface);
+  }
+  {
+    SDL_Surface* surface =
         SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_tiles, spr_tiles_len), true);
     g->assets.tex_tiles = SDL_CreateTextureFromSurface(g->renderer, surface);
     SDL_SetTextureScaleMode(g->assets.tex_tiles, SDL_SCALEMODE_NEAREST);
@@ -182,7 +223,7 @@ void Game_LoadAssets(Game* g) {
   }
 }
 
-void Game_Init(Game* g) {
+void Game_OneTimeSetup(Game* g) {
   g->viewport.w = kViewportWidth;
   g->viewport.h = kViewportHeight;
   g->render_scale = kScaleFactor;
@@ -208,10 +249,13 @@ void Game_Init(Game* g) {
       .left = SDL_SCANCODE_LEFT,
       .right = SDL_SCANCODE_RIGHT,
   };
+}
 
-  g->player.state = IDLE;
-
+void Game_Init(Game* g) {
   g->time_mult = 1;
+  g->player.state = IDLE;
+  Game_SyncPlayerOrigin(g);
+  Game_ResetEntities(g);
 }
 
 SDL_Rect Game_GetWindowSize(Game* g) {
@@ -261,6 +305,15 @@ void Game_RenderOverworld(Game* g) {
   Game_RenderChunk(g, g->cc.x, g->cc.y + 1, 0, kChunkHeight * kTileHeight);
   Game_RenderChunk(g, g->cc.x + 1, g->cc.y + 1, kChunkWidth * kTileWidth,
                    kChunkHeight * kTileHeight);
+}
+
+void Game_RenderEntities(Game* g) {
+  for (int i = 0; i < g->num_ent; i++) {
+    Entity* ent = &g->entities[i];
+    int x = ent->loc.x * kTileWidth;
+    int y = ent->loc.y * kTileHeight;
+    Game_RenderTexture(g, ent->tex, &ent->src_rect, x, y, false);
+  }
 }
 
 void Game_RenderPlayer(Game* g) {
@@ -335,6 +388,7 @@ void Game_Render(Game* g) {
   SDL_SetRenderDrawColor(g->renderer, 99, 155, 255, 255);
   SDL_RenderClear(g->renderer);
   Game_RenderOverworld(g);
+  Game_RenderEntities(g);
   Game_RenderPlayer(g);
   if (g->is_map_visible) {
     Game_RenderMap(g);
@@ -423,26 +477,23 @@ void Game_Update(Game* g, Uint64 dt) {
       g->cc.x++;
       g->player.tgt.x -= kChunkWidth;
       g->player.loc.x -= kChunkWidth;
-      Game_SyncPlayerOrigin(g);
     } else if (g->player.tgt.x < 1) {
       g->cc.x--;
       g->player.tgt.x += kChunkWidth;
       g->player.loc.x += kChunkWidth;
-      Game_SyncPlayerOrigin(g);
     }
     if (g->player.tgt.y > kChunkHeight) {
       g->cc.y++;
       g->player.tgt.y -= kChunkHeight;
       g->player.loc.y -= kChunkHeight;
-      Game_SyncPlayerOrigin(g);
     } else if (g->player.tgt.y < 1) {
       g->cc.y--;
       g->player.tgt.y += kChunkHeight;
       g->player.loc.y += kChunkHeight;
-      Game_SyncPlayerOrigin(g);
     }
 
     if (!(g->cc.x == prev_cc.x && g->cc.y == prev_cc.y)) {
+      Game_SyncPlayerOrigin(g);
       Game_ResetEntities(g);
     }
   }

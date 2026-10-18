@@ -19,13 +19,13 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
   (void)argc;
   (void)argv;
 
-  Game* g = Game_Create();
-  *appstate = g;
-
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) {
     SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
+
+  Game* g = Game_Create();
+  *appstate = g;
 
   SDL_Rect window_size = Game_GetWindowSize(g);
   if (!SDL_CreateWindowAndRenderer("mygame", window_size.w, window_size.h,
@@ -40,6 +40,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
   Game_InitBuffers(g);
   Game_LoadAssets(g);
+  Game_Init(g);
 
   return SDL_APP_CONTINUE;
 }
