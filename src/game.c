@@ -14,9 +14,19 @@
 #include <meta_overworld.h>
 #include <meta_smallship_bob.h>
 #include <spr_overworld.h>
+#include <spr_overworld2.h>
 #include <spr_sky.h>
 #include <spr_smallship_bob.h>
 #include <tilemap_overworld.h>
+
+Uint8 u8_hash(int n) {
+  n *= 198347193467913;
+  n = n >> 7;
+  n *= 347918734983418;
+  n = n << 5;
+  n *= 987972459874791;
+  return n % 255;
+}
 
 Game* Game_Create(void) {
   Game* g = SDL_calloc(1, sizeof(Game));
@@ -26,9 +36,44 @@ Game* Game_Create(void) {
 
 void Game_LoadAssets(Game* g) {
   {
+    SDL_Surface* surface = SDL_LoadPNG_IO(
+        SDL_IOFromConstMem(spr_overworld2, spr_overworld2_len), true);
+    // assumes pixel format is RGBA8
+    Uint32* pixels = surface->pixels;
+    g->overworld = SDL_calloc(surface->w * surface->h, sizeof(Tile2));
+    g->world_width = surface->w / kChunkWidth;
+    for (int y = 0; y < surface->h; y++) {
+      for (int x = 0; x < surface->w; x++) {
+        int i = y * surface->w + x;
+        int cx = x / kChunkWidth;
+        int cy = y / kChunkHeight;
+        int ci = cy * g->world_width + cx;
+        int j = ci * kChunkWidth * kChunkHeight + y * kChunkWidth + x;
+        Uint32 d = pixels[i];
+        constexpr Uint32 kPlayer = 0xff0000ff;
+        constexpr Uint32 kSand = 0xeec39aff;
+        switch (d) {
+          case kPlayer:
+            g->cc.x = cx;
+            g->cc.y = cy;
+            g->player.loc.x = x % kChunkWidth;
+            g->player.loc.y = y % kChunkHeight;
+            break;
+          case kSand:
+            g->overworld[j] = SAND;
+          default:
+            break;
+        }
+      }
+    }
+    SDL_DestroySurface(surface);
+  }
+  {
     SDL_Surface* surface =
         SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_sky, spr_sky_len), true);
     // assumes pixel format is RGBA8
+    const int half_w = surface->w / 2;
+    const int half_h = surface->h / 2;
     Uint32* pixels = surface->pixels;
     int num_points = 0;
     for (int y = 0; y < surface->h; y++) {
@@ -41,7 +86,8 @@ void Game_LoadAssets(Game* g) {
         }
       }
     }
-    g->stars = SDL_calloc(num_points, sizeof(SDL_Point));
+    g->num_stars = num_points;
+    g->stars = SDL_calloc(num_points, sizeof(Star));
     int j = 0;
     for (int y = 0; y < surface->h; y++) {
       for (int x = 0; x < surface->w; x++) {
@@ -49,7 +95,10 @@ void Game_LoadAssets(Game* g) {
         Uint32 d = pixels[i];
         constexpr Uint32 kWhite = ~0u;
         if (d == kWhite) {
-          *(g->stars + j) = (SDL_Point){.x = x, .y = y};
+          Star* star = g->stars + j;
+          star->loc.x = x - half_w;
+          star->loc.y = y - half_h;
+          star->brightness = u8_hash(i);
           j++;
         }
       }
@@ -81,10 +130,6 @@ void Game_SyncPlayerOrigin(Game* g) {
 }
 
 void Game_Init(Game* g) {
-  constexpr int kViewportWidth = 160;
-  constexpr int kViewportHeight = 144;
-  constexpr Uint8 kScaleFactor = 4;
-
   g->viewport.w = kViewportWidth;
   g->viewport.h = kViewportHeight;
   g->render_scale = kScaleFactor;
@@ -112,10 +157,8 @@ void Game_Init(Game* g) {
   };
 
   g->player.state = IDLE;
-  g->player.loc = (SDL_Point){
-      .x = 15,
-      .y = 4,
-  };
+
+  g->time_mult = 1;
 
   Game_SyncPlayerOrigin(g);
 }
@@ -145,15 +188,15 @@ void Game_RenderTexture(Game* g,
 
 void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
   if (cx < 0 || cy < 0 || cx >= kWorldWidth || cy >= kWorldHeight) {
-    return;
+    //return;
   }
   SDL_Texture* tex = g->assets.tex_overworld;
-  int ci = cy * kWorldWidth + cx;
-  const Tile* base_ptr = kOverworld[ci];
+  int ci = cy * g->world_width + cx;
+  Tile2* base_ptr = &g->overworld[ci];
   for (int y = 0; y < kChunkHeight; y++) {
     for (int x = 0; x < kChunkWidth; x++) {
       int i = y * kChunkWidth + x;
-      const Tile* t = base_ptr + i;
+      Tile2* t = base_ptr + i;
       const SDL_Rect* src_rect = &kFrames_overworld[*t].rect;
       Game_RenderTexture(g, tex, src_rect, px + x * kTileWidth,
                          py + y * kTileHeight, false);
@@ -190,6 +233,28 @@ const char* Player_DebugState(PlayerState state) {
   }
 }
 
+void Game_RenderMap(Game* g) {
+  SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 128);
+  {
+    SDL_FRect r = {
+        .x = 0,
+        .y = 0,
+        .w = kViewportWidth,
+        .h = kViewportHeight,
+    };
+    SDL_RenderFillRect(g->renderer, &r);
+  }
+  for (int i = 0; i < g->num_stars; i++) {
+    Star* star = &g->stars[i];
+    Uint8 v = star->brightness;
+    SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, v);
+    SDL_RenderPoint(g->renderer, star->xfm.x, star->xfm.y);
+  }
+
+  SDL_SetRenderDrawColor(g->renderer, 255, 0, 0, 255);
+  SDL_RenderPoint(g->renderer, g->cc.x, g->cc.y);
+}
+
 void Game_RenderDebug(Game* g) {
   SDL_SetRenderScale(g->renderer, 1, 1);
   SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
@@ -219,6 +284,9 @@ void Game_Render(Game* g) {
   SDL_RenderClear(g->renderer);
   Game_RenderOverworld(g);
   Game_RenderPlayer(g);
+  if (g->is_map_visible) {
+    Game_RenderMap(g);
+  }
   Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
 }
@@ -256,6 +324,21 @@ void Game_PollInput(Game* g) {
 }
 
 void Game_Update(Game* g, Uint64 dt) {
+  if (!g->prev_input.select && g->input.select) {
+    g->is_map_visible = !g->is_map_visible;
+  }
+  g->day_ticks += g->time_mult * dt;
+  for (int i = 0; i < g->num_stars; i++) {
+    float x = g->stars[i].loc.x;
+    float y = g->stars[i].loc.y;
+    float theta = (g->day_ticks >> kDayTickPrecision) * kPi / 180;
+    float s = SDL_sinf(theta);
+    float c = SDL_cosf(theta);
+    float rx = c * x + -s * y;
+    float ry = s * x + c * y;
+    g->stars[i].xfm.x = rx + (float)kViewportWidth / 2;
+    g->stars[i].xfm.y = ry + (float)kViewportHeight / 2;
+  }
   if (g->player.state == IDLE) {
     if (g->input.up) {
       g->player.tgt = g->player.loc;

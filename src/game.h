@@ -5,10 +5,18 @@
 #include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_stdinc.h>
 
+constexpr int kViewportWidth = 160;
+constexpr int kViewportHeight = 144;
+constexpr Uint8 kScaleFactor = 4;
+
 constexpr int kMaxNumGamepads = 8;
 constexpr int kSubpixelPrecision = 16;
 
 constexpr int kPlayerSpeed = 3200;
+
+constexpr int kDayTickPrecision = 10;
+
+constexpr float kPi = 3.141592f;
 
 typedef struct {
   SDL_GamepadButton a;
@@ -37,8 +45,19 @@ typedef struct {
   SDL_Texture* tex_overworld;
 } Assets;
 
+#define ENTITY_TYPES(X) \
+  X(BLANK)              \
+  X(WATER)              \
+  X(GRASS)              \
+  X(SAND)
+
+typedef enum {
+#define X(NAME) NAME,
+  ENTITY_TYPES(X)
+#undef X
+} Tile2;
+
 #define PLAYER_STATES(X) \
-  X(INVALID)             \
   X(IDLE)                \
   X(MOVE)
 
@@ -80,6 +99,12 @@ typedef struct {
 } Input;
 
 typedef struct {
+  SDL_Point loc;
+  SDL_FPoint xfm;
+  Uint8 brightness;
+} Star;
+
+typedef struct {
   SDL_Renderer* renderer;
   SDL_Rect viewport;
   Uint8 render_scale;
@@ -92,7 +117,19 @@ typedef struct {
   Player player;
   // Units: chunk coordinates
   SDL_Point cc;
-  SDL_Point *stars;
+
+  Star* stars;
+  SDL_Point* o_stars;
+  SDL_FPoint* t_stars;
+  int num_stars;
+
+  Uint64 day_ticks;
+  Uint8 time_mult;
+  bool is_map_visible;
+
+  Tile2* overworld;
+  // Units: chunks;
+  int world_width;
 } Game;
 
 Game* Game_Create(void);
