@@ -12,6 +12,8 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_surface.h>
 
+#include <entity.h>
+
 #include <data.h>
 
 // generated
@@ -45,32 +47,22 @@ bool PointsEqual(SDL_Point a, SDL_Point b) {
   return a.x == b.x && a.y == b.y;
 }
 
-const char* EntityType_ToString(EntityType type) {
-  switch (type) {
-#define X(NAME) \
-  case NAME:    \
-    return #NAME;
-    ENTITY_TYPES(X)
-#undef X
-  }
-}
-
-bool Entity_OnInteractImpassable(Entity* ent, Game* g) {
-  (void)g;
-  (void)ent;
-  SDL_Log("on interact");
-  return false;
+void Game_ShowDialog(Game* g, const char* msg) {
+  g->player.state = DIALOG;
+  SDL_Log("%s", msg);
 }
 
 Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
   SDL_Log("Spawning %s at %d,%d", EntityType_ToString(type), x, y);
   SDL_Texture* tex = NULL;
   SDL_Rect src_rect = {0};
+  OnInteract on_interact = NULL;
   // NOTE update when new entity type introduced
   switch (type) {
     case VILLAGE:
       tex = g->assets.tex_village;
       src_rect = kFrames_village[0].rect;
+      on_interact = Entity_OnInteractImpassable;
       break;
     case CYCLONE:
       tex = g->assets.tex_cyclone;
@@ -88,7 +80,7 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
       .type = type,
       .tex = tex,
       .src_rect = src_rect,
-      .on_interact = &Entity_OnInteractImpassable,
+      .on_interact = on_interact,
   };
 }
 
@@ -446,6 +438,13 @@ void Game_PollInput(Game* g) {
 }
 
 void Game_Update(Game* g, Uint64 dt) {
+  if (g->player.state == DIALOG) {
+    if (g->input.a && !g->prev_input.a) {
+      g->player.state = IDLE;
+    }
+    return;
+  }
+
   if (!g->prev_input.select && g->input.select) {
     g->is_map_visible = !g->is_map_visible;
   }
@@ -485,9 +484,13 @@ void Game_Update(Game* g, Uint64 dt) {
     if (!PointsEqual(g->player.tgt, g->player.loc)) {
       g->player.state = MOVE;
       for (int i = 0; i < g->num_ent; i++) {
-        Entity *ent = &g->entities[i];
+        Entity* ent = &g->entities[i];
         if (PointsEqual(ent->loc, g->player.tgt)) {
-          ent->on_interact(ent, g);
+          if (ent->on_interact) {
+            if (!ent->on_interact(ent, g)) {
+              g->player.tgt = g->player.loc;
+            }
+          }
         }
       }
     }

@@ -5,6 +5,8 @@
 #include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_stdinc.h>
 
+#include <entity.h>
+
 constexpr int kViewportWidth = 160;
 constexpr int kViewportHeight = 144;
 constexpr Uint8 kScaleFactor = 4;
@@ -55,30 +57,6 @@ typedef struct {
 #undef X
 } Assets;
 
-// NOTE update when new entity type introduced
-#define ENTITY_TYPES(X) \
-  X(NOTYPE)             \
-  X(VILLAGE)            \
-  X(CYCLONE)
-
-typedef enum {
-#define X(NAME) NAME,
-  ENTITY_TYPES(X)
-#undef X
-} EntityType;
-
-typedef struct Game Game;
-typedef struct Entity Entity;
-typedef bool (*OnInteract)(Entity*, Game*);
-
-typedef struct Entity {
-  EntityType type;
-  SDL_Point loc;
-  SDL_Texture* tex;
-  SDL_Rect src_rect;
-  OnInteract on_interact;
-} Entity;
-
 #define TILES(X) \
   X(BLANK)       \
   X(WATER)       \
@@ -93,7 +71,8 @@ typedef enum {
 
 #define PLAYER_STATES(X) \
   X(IDLE)                \
-  X(MOVE)
+  X(MOVE)                \
+  X(DIALOG)
 
 typedef enum {
 #define X(NAME) NAME,
@@ -183,3 +162,5 @@ void Game_Render(Game* g);
 void Game_Update(Game* g, Uint64 dt);
 void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
+
+void Game_ShowDialog(Game* g, const char* msg);

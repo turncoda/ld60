@@ -14,6 +14,7 @@ add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 add_executable(${TARGET_NAME}
   src/main.c
   src/game.c
+  src/entity.c
 )
 
 set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 23)
