@@ -15,18 +15,22 @@
 #include <data.h>
 
 // generated
+#include <spr_overworld2.h>
+#include <spr_sky.h>
+
+// generated
+// NOTE update when new asset is introduced
 #include <meta_cyclone.h>
 #include <spr_cyclone.h>
 
 #include <meta_smallship_bob.h>
 #include <spr_smallship_bob.h>
 
-#include <spr_overworld2.h>
-
-#include <spr_sky.h>
-
 #include <meta_tiles.h>
 #include <spr_tiles.h>
+
+#include <meta_village.h>
+#include <spr_village.h>
 
 Uint8 u8_hash(int n) {
   n *= 198347193467913;
@@ -51,7 +55,12 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
   SDL_Log("Spawning %s at %d,%d", EntityType_ToString(type), x, y);
   SDL_Texture* tex = NULL;
   SDL_Rect src_rect = {0};
+  // NOTE update when new entity type introduced
   switch (type) {
+    case VILLAGE:
+      tex = g->assets.tex_village;
+      src_rect = kFrames_village[0].rect;
+      break;
     case CYCLONE:
       tex = g->assets.tex_cyclone;
       src_rect = kFrames_cyclone[0].rect;
@@ -125,6 +134,7 @@ void Game_LoadAssets(Game* g) {
         int j = ci * kChunkWidth * kChunkHeight + ry * kChunkWidth + rx;
         Uint32 d = pixels[i];
 
+        // NOTE update when new color is introduced
         // color format: 0xAABBGGRR
         switch (d) {
           case 0xff0000ff: /* player */
@@ -142,6 +152,10 @@ void Game_LoadAssets(Game* g) {
             break;
           case 0xffff9b63: /* water */
             g->overworld[j] = WATER;
+            break;
+          case 0xff8a4276: /* village */
+            g->overworld[j] = GRASS;
+            g->entity_spawns[j] = VILLAGE;
             break;
           case 0xffffffff: /* cyclone */
             g->overworld[j] = WATER;
@@ -199,28 +213,17 @@ void Game_LoadAssets(Game* g) {
     SDL_Log("loaded %d stars", num_points);
     SDL_DestroySurface(surface);
   }
-  {
-    SDL_Surface* surface =
-        SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_cyclone, spr_cyclone_len), true);
-    g->assets.tex_cyclone = SDL_CreateTextureFromSurface(g->renderer, surface);
-    SDL_SetTextureScaleMode(g->assets.tex_cyclone, SDL_SCALEMODE_NEAREST);
-    SDL_DestroySurface(surface);
+
+#define X(NAME)                                                                \
+  {                                                                            \
+    SDL_Surface* surface = SDL_LoadPNG_IO(                                     \
+        SDL_IOFromConstMem(spr_##NAME, spr_##NAME##_len), true);               \
+    g->assets.tex_##NAME = SDL_CreateTextureFromSurface(g->renderer, surface); \
+    SDL_SetTextureScaleMode(g->assets.tex_##NAME, SDL_SCALEMODE_NEAREST);      \
+    SDL_DestroySurface(surface);                                               \
   }
-  {
-    SDL_Surface* surface =
-        SDL_LoadPNG_IO(SDL_IOFromConstMem(spr_tiles, spr_tiles_len), true);
-    g->assets.tex_tiles = SDL_CreateTextureFromSurface(g->renderer, surface);
-    SDL_SetTextureScaleMode(g->assets.tex_tiles, SDL_SCALEMODE_NEAREST);
-    SDL_DestroySurface(surface);
-  }
-  {
-    SDL_Surface* surface = SDL_LoadPNG_IO(
-        SDL_IOFromConstMem(spr_smallship_bob, spr_smallship_bob_len), true);
-    g->assets.tex_smallship_bob =
-        SDL_CreateTextureFromSurface(g->renderer, surface);
-    SDL_SetTextureScaleMode(g->assets.tex_smallship_bob, SDL_SCALEMODE_NEAREST);
-    SDL_DestroySurface(surface);
-  }
+  SPRITES(X)
+#undef X
 }
 
 void Game_OneTimeSetup(Game* g) {

@@ -42,14 +42,23 @@ typedef struct {
   SDL_Scancode right;
 } KeyboardInputMap;
 
+// NOTE add here when new asset is introduced
+#define SPRITES(X) \
+  X(cyclone)       \
+  X(village)       \
+  X(smallship_bob) \
+  X(tiles)
+
 typedef struct {
-  SDL_Texture* tex_smallship_bob;
-  SDL_Texture* tex_tiles;
-  SDL_Texture* tex_cyclone;
+#define X(NAME) SDL_Texture* tex_##NAME;
+  SPRITES(X)
+#undef X
 } Assets;
 
+// NOTE update when new entity type introduced
 #define ENTITY_TYPES(X) \
   X(NOTYPE)             \
+  X(VILLAGE)            \
   X(CYCLONE)
 
 typedef enum {
