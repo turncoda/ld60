@@ -28,6 +28,11 @@ Uint8 u8_hash(int n) {
   return n % 255;
 }
 
+void Game_SyncPlayerOrigin(Game* g) {
+  g->player.origin.x = (g->player.loc.x * kTileWidth) << kSubpixelPrecision;
+  g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
+}
+
 Game* Game_Create(void) {
   Game* g = SDL_calloc(1, sizeof(Game));
   Game_Init(g);
@@ -48,20 +53,34 @@ void Game_LoadAssets(Game* g) {
         int cx = x / kChunkWidth;
         int cy = y / kChunkHeight;
         int ci = cy * g->world_width + cx;
-        int j = ci * kChunkWidth * kChunkHeight + y * kChunkWidth + x;
+        int rx = x % kChunkWidth;
+        int ry = y % kChunkHeight;
+        int j = ci * kChunkWidth * kChunkHeight + ry * kChunkWidth + rx;
         Uint32 d = pixels[i];
+
         constexpr Uint32 kPlayer = 0xff0000ff;
-        constexpr Uint32 kSand = 0xeec39aff;
+        constexpr Uint32 kSand = 0xff9ac3ee;
+        constexpr Uint32 kWater = 0xffff9b63;
+        constexpr Uint32 kGrass = 0xff30be6a;
+
         switch (d) {
           case kPlayer:
             g->cc.x = cx;
             g->cc.y = cy;
-            g->player.loc.x = x % kChunkWidth;
-            g->player.loc.y = y % kChunkHeight;
+            g->player.loc.x = rx;
+            g->player.loc.y = ry;
+            Game_SyncPlayerOrigin(g);
             break;
           case kSand:
             g->overworld[j] = SAND;
+            break;
+          case kGrass:
+            g->overworld[j] = GRASS;
+            break;
+          case kWater:
+            break;
           default:
+            SDL_Log("%x", d);
             break;
         }
       }
@@ -124,11 +143,6 @@ void Game_LoadAssets(Game* g) {
   }
 }
 
-void Game_SyncPlayerOrigin(Game* g) {
-  g->player.origin.x = (g->player.loc.x * kTileWidth) << kSubpixelPrecision;
-  g->player.origin.y = (g->player.loc.y * kTileHeight) << kSubpixelPrecision;
-}
-
 void Game_Init(Game* g) {
   g->viewport.w = kViewportWidth;
   g->viewport.h = kViewportHeight;
@@ -159,8 +173,6 @@ void Game_Init(Game* g) {
   g->player.state = IDLE;
 
   g->time_mult = 1;
-
-  Game_SyncPlayerOrigin(g);
 }
 
 SDL_Rect Game_GetWindowSize(Game* g) {
@@ -188,11 +200,11 @@ void Game_RenderTexture(Game* g,
 
 void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
   if (cx < 0 || cy < 0 || cx >= kWorldWidth || cy >= kWorldHeight) {
-    //return;
+    // return;
   }
   SDL_Texture* tex = g->assets.tex_overworld;
   int ci = cy * g->world_width + cx;
-  Tile2* base_ptr = &g->overworld[ci];
+  Tile2* base_ptr = &g->overworld[ci * kChunkWidth * kChunkHeight];
   for (int y = 0; y < kChunkHeight; y++) {
     for (int x = 0; x < kChunkWidth; x++) {
       int i = y * kChunkWidth + x;
