@@ -42,7 +42,7 @@ typedef struct {
   SDL_Scancode right;
 } KeyboardInputMap;
 
-// NOTE add here when new asset is introduced
+// NOTE update when new asset is introduced
 #define SPRITES(X) \
   X(cyclone)       \
   X(village)       \
@@ -67,11 +67,16 @@ typedef enum {
 #undef X
 } EntityType;
 
-typedef struct {
+typedef struct Game Game;
+typedef struct Entity Entity;
+typedef bool (*OnInteract)(Entity*, Game*);
+
+typedef struct Entity {
   EntityType type;
   SDL_Point loc;
   SDL_Texture* tex;
   SDL_Rect src_rect;
+  OnInteract on_interact;
 } Entity;
 
 #define TILES(X) \
@@ -133,7 +138,7 @@ typedef struct {
   Uint8 brightness;
 } Star;
 
-typedef struct {
+typedef struct Game {
   SDL_Renderer* renderer;
   SDL_Rect viewport;
   Uint8 render_scale;

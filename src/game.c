@@ -41,6 +41,10 @@ Uint8 u8_hash(int n) {
   return n % 255;
 }
 
+bool PointsEqual(SDL_Point a, SDL_Point b) {
+  return a.x == b.x && a.y == b.y;
+}
+
 const char* EntityType_ToString(EntityType type) {
   switch (type) {
 #define X(NAME) \
@@ -49,6 +53,13 @@ const char* EntityType_ToString(EntityType type) {
     ENTITY_TYPES(X)
 #undef X
   }
+}
+
+bool Entity_OnInteractImpassable(Entity* ent, Game* g) {
+  (void)g;
+  (void)ent;
+  SDL_Log("on interact");
+  return false;
 }
 
 Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
@@ -77,6 +88,7 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
       .type = type,
       .tex = tex,
       .src_rect = src_rect,
+      .on_interact = &Entity_OnInteractImpassable,
   };
 }
 
@@ -257,6 +269,7 @@ void Game_OneTimeSetup(Game* g) {
 void Game_Init(Game* g) {
   g->time_mult = 1;
   g->player.state = IDLE;
+  g->player.tgt = g->player.loc;
   Game_SyncPlayerOrigin(g);
   Game_ResetEntities(g);
 }
@@ -455,22 +468,28 @@ void Game_Update(Game* g, Uint64 dt) {
     if (g->input.up) {
       g->player.tgt = g->player.loc;
       g->player.tgt.y--;
-      g->player.state = MOVE;
     }
     if (g->input.down) {
       g->player.tgt = g->player.loc;
       g->player.tgt.y++;
-      g->player.state = MOVE;
     }
     if (g->input.left) {
       g->player.tgt = g->player.loc;
       g->player.tgt.x--;
-      g->player.state = MOVE;
     }
     if (g->input.right) {
       g->player.tgt = g->player.loc;
       g->player.tgt.x++;
+    }
+
+    if (!PointsEqual(g->player.tgt, g->player.loc)) {
       g->player.state = MOVE;
+      for (int i = 0; i < g->num_ent; i++) {
+        Entity *ent = &g->entities[i];
+        if (PointsEqual(ent->loc, g->player.tgt)) {
+          ent->on_interact(ent, g);
+        }
+      }
     }
   }
 
