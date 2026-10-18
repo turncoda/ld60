@@ -148,6 +148,9 @@ void Game_LoadAssets(Game* g) {
             g->player.loc.x = rx;
             g->player.loc.y = ry;
             break;
+          case 0xff244b52: /* mountain */
+            g->overworld[j] = MOUNTAIN;
+            break;
           case 0xff9ac3ee: /* sand */
             g->overworld[j] = SAND;
             break;

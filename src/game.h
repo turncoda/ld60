@@ -61,7 +61,8 @@ typedef struct {
   X(BLANK)       \
   X(WATER)       \
   X(GRASS)       \
-  X(SAND)
+  X(SAND)        \
+  X(MOUNTAIN)
 
 typedef enum {
 #define X(NAME) NAME,
