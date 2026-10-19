@@ -1,5 +1,6 @@
 #include <entity.h>
 
+#include <SDL3/SDL_assert.h>
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
 
@@ -91,8 +92,7 @@ void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
 }
 
 bool Village_OnInteract(Entity* ent, Game* g) {
-  (void)ent;
-  Game_InitDialog(g, "you shall not pass");
+  Game_InitDialog(g, ent);
   return false;
 }
 
@@ -104,4 +104,21 @@ const char* EntityType_ToString(EntityType type) {
     ENTITY_TYPES(X)
 #undef X
   }
+}
+
+bool Entity_ApplyShopData(Entity* ent, int cx, int cy, int x, int y) {
+  SDL_assert(ent->type == VILLAGE);
+  // load: village @ chunk=(77,67), loc=(11,6)
+  // load: village @ chunk=(77,69), loc=(5,5)
+  if (cx == 77 && cy == 67 && x == 11 && y == 6) {
+    ent->shop_data[ItemType_sturgeon] = 999;
+    return true;
+  }
+  if (cx == 77 && cy == 69 && x == 5 && y == 5) {
+    ent->shop_data[ItemType_cod] = 20;
+    return true;
+  }
+  SDL_Log("village spawned with no shop data: chunk=(%d,%d), loc=(%d,%d)", cx,
+          cy, x, y);
+  return false;
 }

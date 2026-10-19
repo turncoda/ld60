@@ -11,6 +11,7 @@
 #include <SDL3/SDL_surface.h>
 
 #include <entity.h>
+#include <item.h>
 
 #include <data.h>
 
@@ -69,11 +70,11 @@ SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int amt) {
   return result;
 }
 
-void Game_InitDialog(Game* g, const char* msg) {
+void Game_InitDialog(Game* g, Entity* ent) {
   g->player.state = DIALOG;
   g->shop_menu = (ShopMenu){0};
+  g->shop_menu.ent = ent;
   ShopMenu_InitInvList(&g->shop_menu, g->player.inv);
-  SDL_Log("%s", msg);
 }
 
 Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
@@ -92,6 +93,7 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
       ent.frame_data = kFrames_village;
       ent.num_frames = kNumFrames_village;
       ent.on_interact = Village_OnInteract;
+      SDL_assert(Entity_ApplyShopData(&ent, g->cc.x, g->cc.y, x, y));
       break;
     case CYCLONE:
       ent.tex = g->assets.tex_cyclone;
@@ -184,6 +186,8 @@ void Game_LoadAssets(Game* g) {
           case 0xff8a4276: /* village */
             g->overworld[j] = GRASS;
             g->entity_spawns[j] = VILLAGE;
+            SDL_Log("load: village @ chunk=(%d,%d), loc=(%d,%d)", cx, cy, rx,
+                    ry);
             break;
           case 0xffffffff: /* cyclone */
             g->overworld[j] = WATER;
@@ -386,7 +390,7 @@ void Game_RenderShopMenu(Game* g) {
       .x = kPad,
       .y = kPad,
       .w = kViewportWidth - 2 * kPad,
-      .h = kViewportHeight - 2 * kPad,
+      .h = (kInvLines + 2) * kTileHeight + 2 * kMargin,
   };
   SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 255);
   SDL_RenderFillRect(g->renderer, &r);
@@ -413,9 +417,10 @@ void Game_RenderShopMenu(Game* g) {
            i++) {
         int j = g->shop_menu.scroll + i;
         ItemType type = g->shop_menu.nonzero_slots[j];
-        SDL_RenderDebugTextFormat(g->renderer, x, y + i * kTileHeight,
-                                  "%s%2d %s", j == g->shop_menu.i ? ">" : " ",
-                                  g->player.inv[type], ItemType_ToString(type));
+        SDL_RenderDebugTextFormat(
+            g->renderer, x, y + i * kTileHeight, "%s%2d %s %d",
+            j == g->shop_menu.i ? ">" : " ", g->player.inv[type],
+            ItemType_ToString(type), g->shop_menu.ent->shop_data[type]);
       }
     }
   }

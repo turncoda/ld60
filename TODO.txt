@@ -1,5 +1,5 @@
 - [ ] fishable spot entity
-- [ ] village metadata
+- [x] village metadata
 - [x] show inventory
 - [x] village menu dialog
 - [x] inventory system
@@ -9,4 +9,6 @@
 
 - [ ] animation struct that provides methods to advance animation by T milliseconds, get current frame, etc
 - [ ] save prev_input at top of PollInputs
-- [ ] generate X macro for all assets
+- [ ] generate X macros for all assets
+- [ ] C that runs at compile time
+- [ ] entity schema definition files (sqlite?)

@@ -6,6 +6,7 @@
 #include <SDL3/SDL_stdinc.h>
 
 #include <entity.h>
+#include <item.h>
 
 constexpr int kViewportWidth = 160;
 constexpr int kViewportHeight = 144;
@@ -51,24 +52,6 @@ typedef struct {
   SDL_Scancode left;
   SDL_Scancode right;
 } KeyboardInputMap;
-
-#define ITEM_TYPES(X) \
-  X(salmon)           \
-  X(cod)              \
-  X(tuna)             \
-  X(snapper)          \
-  X(sturgeon)         \
-  X(artifact)         \
-  X(gold)
-
-typedef enum {
-#define X(NAME) ItemType_##NAME,
-  ITEM_TYPES(X)
-#undef X
-      ItemType_Count,
-} ItemType;
-
-const char* ItemType_ToString(ItemType type);
 
 // NOTE update when new asset is introduced
 #define SPRITES(X) \
@@ -155,6 +138,7 @@ typedef struct {
   int nonzero_slots[ItemType_Count];
   int num_nonzero_slots;
   int scroll;
+  Entity* ent;
   int scroll_begin;
   int scroll_end;
 } ShopMenu;
@@ -207,7 +191,7 @@ void Game_Update(Game* g, Uint64 dt);
 void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
 
-void Game_InitDialog(Game* g, const char* msg);
+void Game_InitDialog(Game* g, Entity* ent);
 
 bool PointsEqual(SDL_Point a, SDL_Point b);
 SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int speed);

@@ -5,6 +5,7 @@
 #include <SDL3/SDL_stdinc.h>
 
 #include <data.h>
+#include <item.h>
 
 // NOTE update when new entity type introduced
 #define ENTITY_TYPES(X) \
@@ -50,6 +51,7 @@ typedef struct Entity {
   int num_frames;
   OnInteract on_interact;
   OnUpdate on_update;
+  int shop_data[ItemType_Count];
 } Entity;
 
 const SDL_Rect* Entity_GetTexRect(Entity* ent);
@@ -57,3 +59,4 @@ void Entity_SyncOrigin(Entity* ent);
 void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt);
 bool Village_OnInteract(Entity* ent, Game* g);
 const char* EntityType_ToString(EntityType type);
+bool Entity_ApplyShopData(Entity* ent, int cx, int cy, int x, int y);
