@@ -53,38 +53,30 @@ void Game_ShowDialog(Game* g, const char* msg) {
 }
 
 Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
+  Entity ent = {0};
   SDL_Log("Spawning %s at %d,%d", EntityType_ToString(type), x, y);
-  SDL_Texture* tex = NULL;
-  SDL_Rect src_rect = {0};
-  OnInteract on_interact = NULL;
-  OnUpdate on_update = NULL;
   // NOTE update when new entity type introduced
+  ent.type = type;
+  ent.loc.x = x;
+  ent.loc.y = y;
+  Entity_SyncOrigin(&ent);
   switch (type) {
     case VILLAGE:
-      tex = g->assets.tex_village;
-      src_rect = kFrames_village[0].rect;
-      on_interact = Village_OnInteract;
+      ent.tex = g->assets.tex_village;
+      ent.frame_data = kFrames_village;
+      ent.num_frames = kNumFrames_village;
+      ent.on_interact = Village_OnInteract;
       break;
     case CYCLONE:
-      tex = g->assets.tex_cyclone;
-      src_rect = kFrames_cyclone[0].rect;
-      on_update = Cyclone_OnUpdate;
+      ent.tex = g->assets.tex_cyclone;
+      ent.frame_data = kFrames_cyclone;
+      ent.num_frames = kNumFrames_cyclone;
+      ent.on_update = Cyclone_OnUpdate;
       break;
     default:
       break;
   }
-  return (Entity){
-      .loc =
-          {
-              .x = x,
-              .y = y,
-          },
-      .type = type,
-      .tex = tex,
-      .tex_rect = src_rect,
-      .on_interact = on_interact,
-      .on_update = on_update,
-  };
+  return ent;
 }
 
 void Game_SyncPlayerOrigin(Game* g) {
@@ -324,9 +316,9 @@ void Game_RenderOverworld(Game* g) {
 void Game_RenderEntities(Game* g) {
   for (int i = 0; i < g->num_ent; i++) {
     Entity* ent = &g->entities[i];
-    int x = ent->loc.x * kTileWidth;
-    int y = ent->loc.y * kTileHeight;
-    Game_RenderTexture(g, ent->tex, &ent->tex_rect, x, y, false);
+    int x = ent->origin.x >> kSubpixelPrecision;
+    int y = ent->origin.y >> kSubpixelPrecision;
+    Game_RenderTexture(g, ent->tex, Entity_GetTexRect(ent), x, y, false);
   }
 }
 

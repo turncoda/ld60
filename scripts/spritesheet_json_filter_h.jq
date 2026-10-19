@@ -1,5 +1,8 @@
 (
-  "constexpr struct { SDL_Rect rect; int duration; } kFrames_\(.meta.image | split(".")[0])[] = {"
+  "constexpr int kNumFrames_\(.meta.image | split(".")[0]) = \(.frames | length);"
+),
+(
+  "constexpr Frame kFrames_\(.meta.image | split(".")[0])[] = {"
 ),
 ( [ .frames.[]
     | (.filename | split(".").[0] | gsub(" "; "_")) as $var_name
