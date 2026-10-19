@@ -20,7 +20,8 @@ typedef enum {
 
 #define ENTITY_STATES(X) \
   X(ENT_IDLE)            \
-  X(ENT_MOVE)
+  X(ENT_MOVE)            \
+  X(ENT_STALL)
 
 typedef enum {
 #define X(NAME) NAME,
@@ -36,6 +37,7 @@ typedef void (*OnUpdate)(Entity*, Game*, Uint64);
 typedef struct Entity {
   EntityType type;
   EntityState state;
+  SDL_Rect collider;
   SDL_Point origin;
   SDL_Point loc;
   SDL_Point tgt;

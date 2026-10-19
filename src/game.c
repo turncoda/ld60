@@ -47,6 +47,30 @@ bool PointsEqual(SDL_Point a, SDL_Point b) {
   return a.x == b.x && a.y == b.y;
 }
 
+// Returns a moved towards b by amt.
+SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int amt) {
+  SDL_Point result = a;
+  int dx = b.x - a.x;
+  int dy = b.y - a.y;
+  if (dx != 0) {
+    int sign = dx < 0 ? -1 : 1;
+    int d = amt;
+    int max_d = dx * sign;
+    int clamped_d = SDL_min(max_d, d);
+    int final_d = clamped_d * sign;
+    result.x += final_d;
+  }
+  if (dy != 0) {
+    int sign = dy < 0 ? -1 : 1;
+    int d = amt;
+    int max_d = dy * sign;
+    int clamped_d = SDL_min(max_d, d);
+    int final_d = clamped_d * sign;
+    result.y += final_d;
+  }
+  return result;
+}
+
 void Game_ShowDialog(Game* g, const char* msg) {
   g->player.state = DIALOG;
   SDL_Log("%s", msg);
@@ -60,6 +84,8 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
   ent.loc.x = x;
   ent.loc.y = y;
   Entity_SyncOrigin(&ent);
+  ent.collider.w = 8;
+  ent.collider.h = 8;
   switch (type) {
     case VILLAGE:
       ent.tex = g->assets.tex_village;
@@ -260,6 +286,9 @@ void Game_Init(Game* g) {
   g->time_mult = 1;
   g->player.state = IDLE;
   g->player.tgt = g->player.loc;
+  g->player.collider.w = 8;
+  g->player.collider.h = 8;
+  g->player.warp_meter = 0;
   Game_SyncPlayerOrigin(g);
   Game_ResetEntities(g);
 }

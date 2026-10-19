@@ -99,6 +99,8 @@ typedef struct {
 
   PlayerState state;
 
+  Uint32 warp_meter;
+
 } Player;
 
 typedef struct {
@@ -165,3 +167,6 @@ void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
 
 void Game_ShowDialog(Game* g, const char* msg);
+
+bool PointsEqual(SDL_Point a, SDL_Point b);
+SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int speed);
