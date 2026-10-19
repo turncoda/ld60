@@ -57,16 +57,18 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
   SDL_Texture* tex = NULL;
   SDL_Rect src_rect = {0};
   OnInteract on_interact = NULL;
+  OnUpdate on_update = NULL;
   // NOTE update when new entity type introduced
   switch (type) {
     case VILLAGE:
       tex = g->assets.tex_village;
       src_rect = kFrames_village[0].rect;
-      on_interact = Entity_OnInteractImpassable;
+      on_interact = Village_OnInteract;
       break;
     case CYCLONE:
       tex = g->assets.tex_cyclone;
       src_rect = kFrames_cyclone[0].rect;
+      on_update = Cyclone_OnUpdate;
       break;
     default:
       break;
@@ -79,8 +81,9 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
           },
       .type = type,
       .tex = tex,
-      .src_rect = src_rect,
+      .tex_rect = src_rect,
       .on_interact = on_interact,
+      .on_update = on_update,
   };
 }
 
@@ -323,7 +326,7 @@ void Game_RenderEntities(Game* g) {
     Entity* ent = &g->entities[i];
     int x = ent->loc.x * kTileWidth;
     int y = ent->loc.y * kTileHeight;
-    Game_RenderTexture(g, ent->tex, &ent->src_rect, x, y, false);
+    Game_RenderTexture(g, ent->tex, &ent->tex_rect, x, y, false);
   }
 }
 
@@ -446,6 +449,13 @@ void Game_Update(Game* g, Uint64 dt) {
       g->player.state = IDLE;
     }
     return;
+  }
+
+  for (int i = 0; i < g->num_ent; i++) {
+    Entity* ent = &g->entities[i];
+    if (ent->on_update) {
+      ent->on_update(ent, g, dt);
+    }
   }
 
   if (!g->prev_input.select && g->input.select) {

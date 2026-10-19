@@ -1,11 +1,16 @@
 #include <entity.h>
 
 #include <SDL3/SDL_log.h>
+#include <SDL3/SDL_stdinc.h>
 
 #include <game.h>
 
-bool Entity_OnInteractImpassable(Entity* ent, Game* g) {
+void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
   (void)g;
+  ent->t += dt;
+}
+
+bool Village_OnInteract(Entity* ent, Game* g) {
   (void)ent;
   Game_ShowDialog(g, "you shall not pass");
   return false;
