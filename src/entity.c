@@ -92,7 +92,7 @@ void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
 
 bool Village_OnInteract(Entity* ent, Game* g) {
   (void)ent;
-  Game_ShowDialog(g, "you shall not pass");
+  Game_InitDialog(g, "you shall not pass");
   return false;
 }
 

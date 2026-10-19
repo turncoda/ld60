@@ -22,9 +22,11 @@ constexpr float kPi = 3.141592f;
 
 constexpr int kMaxNumEntities = 256;
 
+constexpr int kInvLines = 4;
+
 typedef enum {
-  ShopMode_Buy,
   ShopMode_Sell,
+  ShopMode_Buy,
   ShopMode_Count,
 } ShopMode;
 
@@ -49,6 +51,24 @@ typedef struct {
   SDL_Scancode left;
   SDL_Scancode right;
 } KeyboardInputMap;
+
+#define ITEM_TYPES(X) \
+  X(salmon)           \
+  X(cod)              \
+  X(tuna)             \
+  X(snapper)          \
+  X(sturgeon)         \
+  X(artifact)         \
+  X(gold)
+
+typedef enum {
+#define X(NAME) ItemType_##NAME,
+  ITEM_TYPES(X)
+#undef X
+      ItemType_Count,
+} ItemType;
+
+const char* ItemType_ToString(ItemType type);
 
 // NOTE update when new asset is introduced
 #define SPRITES(X) \
@@ -109,6 +129,7 @@ typedef struct {
   Uint32 rot_counter;
   Uint32 rot_counter2;
 
+  int inv[ItemType_Count];
 } Player;
 
 typedef struct {
@@ -130,6 +151,12 @@ typedef struct {
 
 typedef struct {
   ShopMode mode;
+  int i;
+  int nonzero_slots[ItemType_Count];
+  int num_nonzero_slots;
+  int scroll;
+  int scroll_begin;
+  int scroll_end;
 } ShopMenu;
 
 typedef struct Game {
@@ -180,7 +207,12 @@ void Game_Update(Game* g, Uint64 dt);
 void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
 
-void Game_ShowDialog(Game* g, const char* msg);
+void Game_InitDialog(Game* g, const char* msg);
 
 bool PointsEqual(SDL_Point a, SDL_Point b);
 SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int speed);
+
+int NextNonZero(int* data, int from, int size);
+int PrevNonZero(int* data, int from);
+void ShopMenu_ReconcileScroll(ShopMenu* m, int* inv);
+void ShopMenu_InitInvList(ShopMenu* m, int* inv);

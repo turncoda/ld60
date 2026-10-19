@@ -1,5 +1,12 @@
-- [ ] village menu dialog
 - [ ] fishable spot entity
-- [ ] inventory system
-- [ ] different fish types
-- [ ] 
+- [ ] village metadata
+- [x] show inventory
+- [x] village menu dialog
+- [x] inventory system
+- [x] different fish types
+
+# improvements for later
+
+- [ ] animation struct that provides methods to advance animation by T milliseconds, get current frame, etc
+- [ ] save prev_input at top of PollInputs
+- [ ] generate X macro for all assets

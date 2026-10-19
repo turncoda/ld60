@@ -69,9 +69,10 @@ SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int amt) {
   return result;
 }
 
-void Game_ShowDialog(Game* g, const char* msg) {
+void Game_InitDialog(Game* g, const char* msg) {
   g->player.state = DIALOG;
   g->shop_menu = (ShopMenu){0};
+  ShopMenu_InitInvList(&g->shop_menu, g->player.inv);
   SDL_Log("%s", msg);
 }
 
@@ -288,6 +289,11 @@ void Game_Init(Game* g) {
   g->player.collider.w = 8;
   g->player.collider.h = 8;
   g->player.warp_meter = 0;
+  g->player.inv[ItemType_cod] = 2;
+  g->player.inv[ItemType_tuna] = 2;
+  g->player.inv[ItemType_snapper] = 3;
+  g->player.inv[ItemType_sturgeon] = 12;
+  g->player.inv[ItemType_artifact] = 1;
   Game_SyncPlayerOrigin(g);
   Game_ResetEntities(g);
 }
@@ -373,7 +379,7 @@ const char* Player_DebugState(PlayerState state) {
   }
 }
 
-void Game_RenderDialog(Game* g) {
+void Game_RenderShopMenu(Game* g) {
   constexpr int kPad = 12;
   constexpr int kMargin = 12;
   SDL_FRect r = {
@@ -397,6 +403,22 @@ void Game_RenderDialog(Game* g) {
   }
   SDL_RenderDebugTextFormat(g->renderer, kPad + kMargin + 5 * kTileWidth,
                             kPad + kMargin, "sell");
+  if (g->shop_menu.mode == ShopMode_Sell) {
+    int x = kPad + kMargin;
+    int y = kPad + kMargin + 2 * kTileHeight;
+    if (g->shop_menu.num_nonzero_slots == 0) {
+      SDL_RenderDebugTextFormat(g->renderer, x, y, "(no items)");
+    } else {
+      for (int i = 0; i < g->shop_menu.num_nonzero_slots && i < kInvLines;
+           i++) {
+        int j = g->shop_menu.scroll + i;
+        ItemType type = g->shop_menu.nonzero_slots[j];
+        SDL_RenderDebugTextFormat(g->renderer, x, y + i * kTileHeight,
+                                  "%s%2d %s", j == g->shop_menu.i ? ">" : " ",
+                                  g->player.inv[type], ItemType_ToString(type));
+      }
+    }
+  }
 }
 
 void Game_RenderMap(Game* g) {
@@ -439,6 +461,9 @@ void Game_RenderDebug(Game* g) {
                             g->player.warp_meter);
   SDL_RenderDebugTextFormat(g->renderer, 0, 56, "rot2=%d",
                             g->player.rot_counter2);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 64, "scroll=%d",
+                            g->shop_menu.scroll);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 72, "shop_i=%d", g->shop_menu.i);
   if (g->player.state == MOVE) {
     SDL_FRect r = {.x = g->player.tgt.x * kTileWidth * g->render_scale,
                    .y = g->player.tgt.y * kTileHeight * g->render_scale,
@@ -460,7 +485,7 @@ void Game_Render(Game* g) {
     Game_RenderMap(g);
   }
   if (g->player.state == DIALOG) {
-    Game_RenderDialog(g);
+    Game_RenderShopMenu(g);
   }
   Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
@@ -500,12 +525,35 @@ void Game_PollInput(Game* g) {
 
 void Game_Update(Game* g, Uint64 dt) {
   if (g->player.state == DIALOG) {
+    if (g->input.a && !g->prev_input.a) {
+      int i = g->shop_menu.nonzero_slots[g->shop_menu.i];
+      int c = g->player.inv[i];
+      if (c > 0) {
+        g->player.inv[i] = c - 1;
+      }
+    }
     if (g->input.b && !g->prev_input.b) {
       g->player.state = IDLE;
     }
     if (g->input.select && !g->prev_input.select) {
       g->shop_menu.mode++;
       g->shop_menu.mode %= ShopMode_Count;
+    }
+    if (g->input.up && !g->prev_input.up) {
+      SDL_Log("inv up");
+      int i = g->shop_menu.i - 1;
+      g->shop_menu.i = SDL_max(i, 0);
+    }
+    if (g->input.down && !g->prev_input.down) {
+      SDL_Log("inv down");
+      int i = g->shop_menu.i + 1;
+      g->shop_menu.i = SDL_min(i, g->shop_menu.num_nonzero_slots - 1);
+    }
+    if (g->shop_menu.i >= g->shop_menu.scroll + kInvLines) {
+      g->shop_menu.scroll++;
+    }
+    if (g->shop_menu.i < g->shop_menu.scroll) {
+      g->shop_menu.scroll--;
     }
     SDL_memcpy(&g->prev_input, &g->input, sizeof(g->input));
     return;
@@ -688,5 +736,63 @@ void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad) {
       g->gamepads[i] = NULL;
       break;
     }
+  }
+}
+
+const char* ItemType_ToString(ItemType type) {
+  return (const char*[]){
+#define X(NAME) #NAME,
+      ITEM_TYPES(X)
+#undef X
+  }[type];
+}
+
+int NextNonZero(int* data, int from, int size) {
+  for (int i = from; i < size; i++) {
+    if (data[i] > 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int PrevNonZero(int* data, int from) {
+  for (int i = from; i >= 0; i--) {
+    if (data[i] > 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void ShopMenu_InitInvList(ShopMenu* m, int* inv) {
+  m->num_nonzero_slots = 0;
+  for (int i = 0; i < ItemType_Count; i++) {
+    if (inv[i] > 0) {
+      m->nonzero_slots[m->num_nonzero_slots++] = i;
+    }
+  }
+}
+
+void ShopMenu_ReconcileScroll(ShopMenu* m, int* inv) {
+  if (inv[m->i] > 0) {
+    return;
+  }
+  {
+    int nnz = NextNonZero(inv, m->i + 1, ItemType_Count);
+    if (nnz != -1) {
+      m->i = nnz;
+    } else {
+      int pnz = PrevNonZero(inv, m->i - 1);
+      m->i = pnz;
+    }
+  }
+  if (m->i == m->scroll_begin) {
+    int nnz = NextNonZero(inv, m->scroll_begin + 1, ItemType_Count);
+    m->scroll_begin = nnz;
+  }
+  int nnz = NextNonZero(inv, m->scroll_end + 1, ItemType_Count);
+  if (nnz != -1) {
+    m->scroll_end = nnz;
   }
 }
