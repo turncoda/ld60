@@ -11,7 +11,8 @@
 #define ENTITY_TYPES(X) \
   X(NOTYPE)             \
   X(VILLAGE)            \
-  X(CYCLONE)
+  X(CYCLONE)            \
+  X(FISH)
 
 typedef enum {
 #define X(NAME) NAME,
@@ -52,11 +53,14 @@ typedef struct Entity {
   OnInteract on_interact;
   OnUpdate on_update;
   int shop_data[ItemType_Count];
+  int fish_meter;
+  bool should_delete;
 } Entity;
 
 const SDL_Rect* Entity_GetTexRect(Entity* ent);
 void Entity_SyncOrigin(Entity* ent);
 void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt);
+void Fish_OnUpdate(Entity* ent, Game* g, Uint64 dt);
 bool Village_OnInteract(Entity* ent, Game* g);
 const char* EntityType_ToString(EntityType type);
 bool Entity_ApplyShopData(Entity* ent, int cx, int cy, int x, int y);

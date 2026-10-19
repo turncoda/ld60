@@ -6,8 +6,7 @@
   X(tuna)             \
   X(snapper)          \
   X(sturgeon)         \
-  X(artifact)         \
-  X(gold)
+  X(artifact)
 
 typedef enum {
 #define X(NAME) ItemType_##NAME,

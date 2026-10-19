@@ -96,6 +96,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
   Game_Update(g, dt);
   Game_Render(g);
+  Game_SweepEntities(g);
 
   return SDL_APP_CONTINUE;
 }

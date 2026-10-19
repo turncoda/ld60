@@ -21,6 +21,9 @@
 
 // generated
 // NOTE update when new asset is introduced
+#include <meta_fish.h>
+#include <spr_fish.h>
+
 #include <meta_cyclone.h>
 #include <spr_cyclone.h>
 
@@ -88,6 +91,12 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
   ent.collider.w = 8;
   ent.collider.h = 8;
   switch (type) {
+    case FISH:
+      ent.tex = g->assets.tex_fish;
+      ent.frame_data = kFrames_fish;
+      ent.num_frames = kNumFrames_fish;
+      ent.on_update = Fish_OnUpdate;
+      break;
     case VILLAGE:
       ent.tex = g->assets.tex_village;
       ent.frame_data = kFrames_village;
@@ -170,6 +179,10 @@ void Game_LoadAssets(Game* g) {
             g->cc.y = cy;
             g->player.loc.x = rx;
             g->player.loc.y = ry;
+            break;
+          case 0xff36f2fb: /* fish */
+            g->overworld[j] = WATER;
+            g->entity_spawns[j] = FISH;
             break;
           case 0xff244b52: /* mountain */
             g->overworld[j] = MOUNTAIN;
@@ -799,5 +812,19 @@ void ShopMenu_ReconcileScroll(ShopMenu* m, int* inv) {
   int nnz = NextNonZero(inv, m->scroll_end + 1, ItemType_Count);
   if (nnz != -1) {
     m->scroll_end = nnz;
+  }
+}
+
+void Game_ShowMsg(Game* g, const char* msg) {
+  (void)g;
+  SDL_Log("%s", msg);
+}
+
+void Game_SweepEntities(Game* g) {
+  for (int i = 0; i < g->num_ent; i++) {
+    if (g->entities[i].should_delete) {
+      SDL_memcpy(g->entities + i, g->entities + i + 1, sizeof(Entity) * (g->num_ent - i - 1));
+      g->num_ent--;
+    }
   }
 }

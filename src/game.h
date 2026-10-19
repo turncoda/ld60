@@ -55,6 +55,7 @@ typedef struct {
 
 // NOTE update when new asset is introduced
 #define SPRITES(X) \
+  X(fish)          \
   X(cyclone)       \
   X(village)       \
   X(smallship_bob) \
@@ -190,6 +191,8 @@ void Game_Render(Game* g);
 void Game_Update(Game* g, Uint64 dt);
 void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
+void Game_ShowMsg(Game* g, const char* msg);
+void Game_SweepEntities(Game* g);
 
 void Game_InitDialog(Game* g, Entity* ent);
 
