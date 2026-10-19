@@ -74,7 +74,7 @@ SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int amt) {
 }
 
 void Game_InitDialog(Game* g, Entity* ent) {
-  g->player.state = DIALOG;
+  g->player.state = SHOP;
   g->shop_menu = (ShopMenu){0};
   g->shop_menu.ent = ent;
   ShopMenu_InitInvList(&g->shop_menu, g->player.inv);
@@ -397,6 +397,22 @@ const char* Player_DebugState(PlayerState state) {
   }
 }
 
+void Game_RenderDialog(Game* g) {
+  constexpr int kPad = 12;
+  constexpr int kMargin = 12;
+  SDL_FRect r = {
+      .x = kPad,
+      .y = kPad,
+      .w = kViewportWidth - 2 * kPad,
+      .h = kTileHeight + 2 * kMargin,
+  };
+  SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 255);
+  SDL_RenderFillRect(g->renderer, &r);
+  SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
+  SDL_RenderDebugTextFormat(g->renderer, kPad + kMargin, kPad + kMargin,
+                            "+1 %s", g->dialog.msg);
+}
+
 void Game_RenderShopMenu(Game* g) {
   constexpr int kPad = 12;
   constexpr int kMargin = 12;
@@ -503,8 +519,11 @@ void Game_Render(Game* g) {
   if (g->is_map_visible) {
     Game_RenderMap(g);
   }
-  if (g->player.state == DIALOG) {
+  if (g->player.state == SHOP) {
     Game_RenderShopMenu(g);
+  }
+  if (g->player.state == DIALOG) {
+    Game_RenderDialog(g);
   }
   Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
@@ -544,6 +563,13 @@ void Game_PollInput(Game* g) {
 
 void Game_Update(Game* g, Uint64 dt) {
   if (g->player.state == DIALOG) {
+    if (g->input.a && !g->prev_input.a) {
+      g->player.state = IDLE;
+    }
+    SDL_memcpy(&g->prev_input, &g->input, sizeof(g->input));
+    return;
+  }
+  if (g->player.state == SHOP) {
     if (g->input.a && !g->prev_input.a) {
       int i = g->shop_menu.nonzero_slots[g->shop_menu.i];
       int c = g->player.inv[i];
@@ -816,9 +842,10 @@ void ShopMenu_ReconcileScroll(ShopMenu* m, int* inv) {
   }
 }
 
-void Game_ShowMsg(Game* g, const char* msg) {
-  (void)g;
-  SDL_Log("%s", msg);
+void Game_ShowMsg(Game* g, ItemType type) {
+  g->player.state = DIALOG;
+  g->dialog = (Dialog){0};
+  g->dialog.msg = ItemType_ToString(type);
 }
 
 void Game_SweepEntities(Game* g) {

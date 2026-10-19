@@ -19,7 +19,7 @@ void Entity_SyncOrigin(Entity* ent) {
 void Fish_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
   constexpr int kFishUpMs = 3000;
   if (ent->fish_meter > kFishUpMs) {
-    Game_ShowMsg(g, "fish get");
+    Game_ShowMsg(g, ent->fish_data);
     g->player.inv[ent->fish_data]++;
     ent->should_delete = true;
     return;

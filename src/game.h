@@ -83,6 +83,7 @@ typedef enum {
 #define PLAYER_STATES(X) \
   X(IDLE)                \
   X(MOVE)                \
+  X(SHOP)                \
   X(DIALOG)
 
 typedef enum {
@@ -144,6 +145,10 @@ typedef struct {
   int scroll_end;
 } ShopMenu;
 
+typedef struct {
+  const char* msg;
+} Dialog;
+
 typedef struct Game {
   SDL_Renderer* renderer;
   SDL_Rect viewport;
@@ -178,6 +183,8 @@ typedef struct Game {
   int num_ent;
 
   ShopMenu shop_menu;
+
+  Dialog dialog;
 } Game;
 
 Game* Game_Create(void);
@@ -191,7 +198,7 @@ void Game_Render(Game* g);
 void Game_Update(Game* g, Uint64 dt);
 void Game_AddGamepad(Game* g, SDL_Gamepad* gamepad);
 void Game_RemoveGamepad(Game* g, SDL_Gamepad* gamepad);
-void Game_ShowMsg(Game* g, const char* msg);
+void Game_ShowMsg(Game* g, ItemType type);
 void Game_SweepEntities(Game* g);
 
 void Game_InitDialog(Game* g, Entity* ent);
