@@ -1,0 +1,5 @@
+- [ ] village menu dialog
+- [ ] fishable spot entity
+- [ ] inventory system
+- [ ] different fish types
+- [ ] 

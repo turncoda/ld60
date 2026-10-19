@@ -22,6 +22,12 @@ constexpr float kPi = 3.141592f;
 
 constexpr int kMaxNumEntities = 256;
 
+typedef enum {
+  ShopMode_Buy,
+  ShopMode_Sell,
+  ShopMode_Count,
+} ShopMode;
+
 typedef struct {
   SDL_GamepadButton a;
   SDL_GamepadButton b;
@@ -122,6 +128,10 @@ typedef struct {
   Uint8 brightness;
 } Star;
 
+typedef struct {
+  ShopMode mode;
+} ShopMenu;
+
 typedef struct Game {
   SDL_Renderer* renderer;
   SDL_Rect viewport;
@@ -154,6 +164,8 @@ typedef struct Game {
 
   Entity* entities;
   int num_ent;
+
+  ShopMenu shop_menu;
 } Game;
 
 Game* Game_Create(void);

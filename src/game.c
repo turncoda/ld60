@@ -71,6 +71,7 @@ SDL_Point MoveTowards(SDL_Point a, SDL_Point b, int amt) {
 
 void Game_ShowDialog(Game* g, const char* msg) {
   g->player.state = DIALOG;
+  g->shop_menu = (ShopMenu){0};
   SDL_Log("%s", msg);
 }
 
@@ -372,6 +373,32 @@ const char* Player_DebugState(PlayerState state) {
   }
 }
 
+void Game_RenderDialog(Game* g) {
+  constexpr int kPad = 12;
+  constexpr int kMargin = 12;
+  SDL_FRect r = {
+      .x = kPad,
+      .y = kPad,
+      .w = kViewportWidth - 2 * kPad,
+      .h = kViewportHeight - 2 * kPad,
+  };
+  SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 255);
+  SDL_RenderFillRect(g->renderer, &r);
+  if (g->shop_menu.mode == ShopMode_Buy) {
+    SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
+  } else {
+    SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 128);
+  }
+  SDL_RenderDebugTextFormat(g->renderer, kPad + kMargin, kPad + kMargin, "buy");
+  if (g->shop_menu.mode == ShopMode_Sell) {
+    SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 255);
+  } else {
+    SDL_SetRenderDrawColor(g->renderer, 255, 255, 255, 128);
+  }
+  SDL_RenderDebugTextFormat(g->renderer, kPad + kMargin + 5 * kTileWidth,
+                            kPad + kMargin, "sell");
+}
+
 void Game_RenderMap(Game* g) {
   SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 128);
   {
@@ -432,6 +459,9 @@ void Game_Render(Game* g) {
   if (g->is_map_visible) {
     Game_RenderMap(g);
   }
+  if (g->player.state == DIALOG) {
+    Game_RenderDialog(g);
+  }
   Game_RenderDebug(g);
   SDL_RenderPresent(g->renderer);
 }
@@ -470,9 +500,14 @@ void Game_PollInput(Game* g) {
 
 void Game_Update(Game* g, Uint64 dt) {
   if (g->player.state == DIALOG) {
-    if (g->input.a && !g->prev_input.a) {
+    if (g->input.b && !g->prev_input.b) {
       g->player.state = IDLE;
     }
+    if (g->input.select && !g->prev_input.select) {
+      g->shop_menu.mode++;
+      g->shop_menu.mode %= ShopMode_Count;
+    }
+    SDL_memcpy(&g->prev_input, &g->input, sizeof(g->input));
     return;
   }
 
