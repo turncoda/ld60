@@ -96,6 +96,7 @@ Entity Game_NewEntity(Game* g, int x, int y, EntityType type) {
       ent.frame_data = kFrames_fish;
       ent.num_frames = kNumFrames_fish;
       ent.on_update = Fish_OnUpdate;
+      SDL_assert(Entity_ApplyFishData(&ent, g->cc.x, g->cc.y, x, y));
       break;
     case VILLAGE:
       ent.tex = g->assets.tex_village;
@@ -823,7 +824,8 @@ void Game_ShowMsg(Game* g, const char* msg) {
 void Game_SweepEntities(Game* g) {
   for (int i = 0; i < g->num_ent; i++) {
     if (g->entities[i].should_delete) {
-      SDL_memcpy(g->entities + i, g->entities + i + 1, sizeof(Entity) * (g->num_ent - i - 1));
+      SDL_memcpy(g->entities + i, g->entities + i + 1,
+                 sizeof(Entity) * (g->num_ent - i - 1));
       g->num_ent--;
     }
   }

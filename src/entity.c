@@ -20,6 +20,7 @@ void Fish_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
   constexpr int kFishUpMs = 3000;
   if (ent->fish_meter > kFishUpMs) {
     Game_ShowMsg(g, "fish get");
+    g->player.inv[ent->fish_data]++;
     ent->should_delete = true;
     return;
   }
@@ -95,7 +96,6 @@ void Fish_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
     ent->frame_i %= ent->num_frames;
   }
 }
-
 
 void Cyclone_OnUpdate(Entity* ent, Game* g, Uint64 dt) {
   (void)g;
@@ -187,6 +187,17 @@ const char* EntityType_ToString(EntityType type) {
   }
 }
 
+bool Entity_ApplyFishData(Entity* ent, int cx, int cy, int x, int y) {
+  SDL_assert(ent->type == FISH);
+  if (cx == 77 && cy == 69 && x == 12 && y == 7) {
+    ent->fish_data = ItemType_cod;
+    return true;
+  }
+  SDL_Log("warning: fish spawned with no data: chunk=(%d,%d), loc=(%d,%d)", cx,
+          cy, x, y);
+  return false;
+}
+
 bool Entity_ApplyShopData(Entity* ent, int cx, int cy, int x, int y) {
   SDL_assert(ent->type == VILLAGE);
   // load: village @ chunk=(77,67), loc=(11,6)
@@ -199,7 +210,8 @@ bool Entity_ApplyShopData(Entity* ent, int cx, int cy, int x, int y) {
     ent->shop_data[ItemType_cod] = 20;
     return true;
   }
-  SDL_Log("village spawned with no shop data: chunk=(%d,%d), loc=(%d,%d)", cx,
-          cy, x, y);
+  SDL_Log(
+      "warning: village spawned with no shop data: chunk=(%d,%d), loc=(%d,%d)",
+      cx, cy, x, y);
   return false;
 }

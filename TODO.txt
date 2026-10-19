@@ -1,4 +1,5 @@
-- [ ] fishable spot entity
+- [ ] fish get dialog
+- [x] fishable spot entity
 - [x] village metadata
 - [x] show inventory
 - [x] village menu dialog
