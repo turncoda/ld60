@@ -100,6 +100,8 @@ typedef struct {
   PlayerState state;
 
   Uint32 warp_meter;
+  Uint32 rot_counter;
+  Uint32 rot_counter2;
 
 } Player;
 

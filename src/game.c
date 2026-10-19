@@ -305,6 +305,7 @@ void Game_RenderTexture(Game* g,
                         const SDL_Rect* src_rect,
                         int x,
                         int y,
+                        double angle,
                         bool mirror_x) {
   SDL_assert(src_rect);
   SDL_FRect s, d;
@@ -312,7 +313,7 @@ void Game_RenderTexture(Game* g,
   SDL_RectToFRect(src_rect, &d);
   d.x = x;
   d.y = y;
-  SDL_RenderTextureRotated(g->renderer, tex, &s, &d, 0, NULL,
+  SDL_RenderTextureRotated(g->renderer, tex, &s, &d, angle, NULL,
                            mirror_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 }
 
@@ -329,7 +330,7 @@ void Game_RenderChunk(Game* g, int cx, int cy, int px, int py) {
       Tile2* t = base_ptr + i;
       const SDL_Rect* src_rect = &kFrames_tiles[*t].rect;
       Game_RenderTexture(g, tex, src_rect, px + x * kTileWidth,
-                         py + y * kTileHeight, false);
+                         py + y * kTileHeight, 0, false);
     }
   }
 }
@@ -347,7 +348,7 @@ void Game_RenderEntities(Game* g) {
     Entity* ent = &g->entities[i];
     int x = ent->origin.x >> kSubpixelPrecision;
     int y = ent->origin.y >> kSubpixelPrecision;
-    Game_RenderTexture(g, ent->tex, Entity_GetTexRect(ent), x, y, false);
+    Game_RenderTexture(g, ent->tex, Entity_GetTexRect(ent), x, y, 0, false);
   }
 }
 
@@ -359,7 +360,8 @@ void Game_RenderPlayer(Game* g) {
   // Units: pixels
   int x = g->player.origin.x >> kSubpixelPrecision;
   int y = g->player.origin.y >> kSubpixelPrecision;
-  Game_RenderTexture(g, tex, src_rect, x, y, false);
+  double angle = g->player.rot_counter2 * 90;
+  Game_RenderTexture(g, tex, src_rect, x, y, angle, false);
 }
 
 const char* Player_DebugState(PlayerState state) {
@@ -410,6 +412,8 @@ void Game_RenderDebug(Game* g) {
   SDL_RenderDebugTextFormat(g->renderer, 0, 40, "num_ent=%d", g->num_ent);
   SDL_RenderDebugTextFormat(g->renderer, 0, 48, "warp=%d",
                             g->player.warp_meter);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 56, "rot2=%d",
+                            g->player.rot_counter2);
   if (g->player.state == MOVE) {
     SDL_FRect r = {.x = g->player.tgt.x * kTileWidth * g->render_scale,
                    .y = g->player.tgt.y * kTileHeight * g->render_scale,
@@ -474,6 +478,16 @@ void Game_Update(Game* g, Uint64 dt) {
     return;
   }
 
+  if (g->player.warp_meter == 0) {
+    g->player.rot_counter = 0;
+    g->player.rot_counter2 = 0;
+  } else {
+    g->player.rot_counter += dt * g->player.warp_meter;
+    constexpr int kRotCounterPrecision = 19;
+    g->player.rot_counter2 =
+        (g->player.rot_counter >> kRotCounterPrecision) % 4;
+  }
+
   bool is_player_touching_cyclone = false;
   for (int i = 0; i < g->num_ent; i++) {
     Entity* ent = &g->entities[i];
@@ -498,17 +512,21 @@ void Game_Update(Game* g, Uint64 dt) {
       }
     }
   }
+
+  constexpr int kWarpMeterAttackSpeed = 2;
+  constexpr int kWarpMeterDecaySpeed = 8;
   if (is_player_touching_cyclone) {
-    g->player.warp_meter += dt;
-    constexpr int kWarpMeterMax = 4000;
+    g->player.warp_meter += dt * kWarpMeterAttackSpeed;
+    constexpr int kWarpMeterMax = 5000;
     if (g->player.warp_meter > kWarpMeterMax) {
       g->player.warp_meter = kWarpMeterMax;
     }
   } else {
-    if (g->player.warp_meter < dt) {
+    Uint64 decay_amt = dt * kWarpMeterDecaySpeed;
+    if (g->player.warp_meter < decay_amt) {
       g->player.warp_meter = 0;
     } else {
-      g->player.warp_meter -= dt;
+      g->player.warp_meter -= decay_amt;
     }
   }
 
