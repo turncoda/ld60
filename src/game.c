@@ -1,7 +1,5 @@
 #include <game.h>
 
-#include <intrin.h>
-
 #include <SDL3/SDL_assert.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_iostream.h>
