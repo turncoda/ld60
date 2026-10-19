@@ -408,6 +408,8 @@ void Game_RenderDebug(Game* g) {
   SDL_RenderDebugTextFormat(g->renderer, 0, 32, "state=%s",
                             Player_DebugState(g->player.state));
   SDL_RenderDebugTextFormat(g->renderer, 0, 40, "num_ent=%d", g->num_ent);
+  SDL_RenderDebugTextFormat(g->renderer, 0, 48, "warp=%d",
+                            g->player.warp_meter);
   if (g->player.state == MOVE) {
     SDL_FRect r = {.x = g->player.tgt.x * kTileWidth * g->render_scale,
                    .y = g->player.tgt.y * kTileHeight * g->render_scale,
@@ -472,10 +474,41 @@ void Game_Update(Game* g, Uint64 dt) {
     return;
   }
 
+  bool is_player_touching_cyclone = false;
   for (int i = 0; i < g->num_ent; i++) {
     Entity* ent = &g->entities[i];
     if (ent->on_update) {
       ent->on_update(ent, g, dt);
+    }
+    if (ent->type == CYCLONE) {
+      SDL_Rect ent_rect = {
+          .x = ent->origin.x >> kSubpixelPrecision,
+          .y = ent->origin.y >> kSubpixelPrecision,
+          .w = ent->collider.w,
+          .h = ent->collider.h,
+      };
+      SDL_Rect player_rect = {
+          .x = g->player.origin.x >> kSubpixelPrecision,
+          .y = g->player.origin.y >> kSubpixelPrecision,
+          .w = g->player.collider.w,
+          .h = g->player.collider.h,
+      };
+      if (SDL_HasRectIntersection(&ent_rect, &player_rect)) {
+        is_player_touching_cyclone = true;
+      }
+    }
+  }
+  if (is_player_touching_cyclone) {
+    g->player.warp_meter += dt;
+    constexpr int kWarpMeterMax = 4000;
+    if (g->player.warp_meter > kWarpMeterMax) {
+      g->player.warp_meter = kWarpMeterMax;
+    }
+  } else {
+    if (g->player.warp_meter < dt) {
+      g->player.warp_meter = 0;
+    } else {
+      g->player.warp_meter -= dt;
     }
   }
 
